@@ -1,73 +1,164 @@
 package com.autoconfirm.smsforwarder;
 
-import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
+import android.os.Build;
+import android.provider.Settings;
+import android.view.View;
+import android.widget.*;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.view.accessibility.AccessibilityManager;
+import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
-    private EditText etUrl, etToken, etSender1, etSender2, etSender3;
+public class MainActivity extends Activity {
     private SharedPreferences prefs;
+    private TextView tvStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("config", MODE_PRIVATE);
+        buildUI();
+        requestAllPermissions();
+    }
 
-        setContentView(R.layout.activity_main);
-        etUrl = findViewById(R.id.etUrl);
-        etToken = findViewById(R.id.etToken);
-        etSender1 = findViewById(R.id.etSender1);
-        etSender2 = findViewById(R.id.etSender2);
-        etSender3 = findViewById(R.id.etSender3);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateStatus();
+    }
 
-        etUrl.setText(prefs.getString("webhook_url", "https://autoconfirm.online/webhook/saas"));
-        etToken.setText(prefs.getString("token", ""));
-        etSender1.setText(prefs.getString("sender1", "Wave"));
-        etSender2.setText(prefs.getString("sender2", "Orange"));
-        etSender3.setText(prefs.getString("sender3", "MTN"));
+    private void buildUI() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(40, 60, 40, 40);
+        root.setBackgroundColor(0xFFF0F4F8);
 
-        Button btnSave = findViewById(R.id.btnSave);
+        TextView title = new TextView(this);
+        title.setText("AutoConfirm SMS");
+        title.setTextSize(24); title.setTextColor(0xFF1a237e);
+        root.addView(title);
+
+        TextView sub = new TextView(this);
+        sub.setText("Capture SMS Wave / Orange / MTN");
+        sub.setTextSize(13); sub.setTextColor(0xFF64748b);
+        sub.setPadding(0,4,0,20);
+        root.addView(sub);
+
+        tvStatus = new TextView(this);
+        tvStatus.setPadding(20,16,20,16);
+        tvStatus.setTextSize(13);
+        root.addView(tvStatus);
+        root.addView(spacer(20));
+
+        root.addView(label("URL Webhook"));
+        EditText etUrl = input("https://autoconfirm.online/webhook/saas");
+        etUrl.setText(prefs.getString("url","https://autoconfirm.online/webhook/saas"));
+        root.addView(etUrl);
+        root.addView(spacer(12));
+
+        root.addView(label("Token"));
+        EditText etToken = input("ex: linebet2026secret");
+        etToken.setText(prefs.getString("token",""));
+        root.addView(etToken);
+        root.addView(spacer(12));
+
+        root.addView(label("Expediteurs (separes par virgule)"));
+        EditText etSenders = input("Wave,Orange,MobileMoney,+454,MTN");
+        etSenders.setText(prefs.getString("senders","Wave,Orange,MobileMoney,+454,MTN"));
+        root.addView(etSenders);
+        root.addView(spacer(20));
+
+        Button btnSave = btn("Sauvegarder", 0xFF1a237e);
         btnSave.setOnClickListener(v -> {
             prefs.edit()
-                .putString("webhook_url", etUrl.getText().toString().trim())
+                .putString("url", etUrl.getText().toString().trim())
                 .putString("token", etToken.getText().toString().trim())
-                .putString("sender1", etSender1.getText().toString().trim())
-                .putString("sender2", etSender2.getText().toString().trim())
-                .putString("sender3", etSender3.getText().toString().trim())
+                .putString("senders", etSenders.getText().toString().trim())
                 .apply();
-            Toast.makeText(this, "Configuration sauvegardee!", Toast.LENGTH_SHORT).show();
-            startService();
+            Toast.makeText(this,"Sauvegarde!",Toast.LENGTH_SHORT).show();
         });
+        root.addView(btnSave);
+        root.addView(spacer(10));
 
-        Button btnStart = findViewById(R.id.btnStart);
-        btnStart.setOnClickListener(v -> startService());
+        Button btnAccess = btn("Autoriser Accessibilite (REQUIS)", 0xFFf59e0b);
+        btnAccess.setOnClickListener(v ->
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        root.addView(btnAccess);
+        root.addView(spacer(10));
 
-        requestPermissions();
-        startService();
+        Button btnStart = btn("Demarrer le Service", 0xFF10b981);
+        btnStart.setOnClickListener(v -> {
+            Intent svc = new Intent(this, SmsService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                startForegroundService(svc);
+            else startService(svc);
+            updateStatus();
+        });
+        root.addView(btnStart);
+
+        scroll.addView(root);
+        setContentView(scroll);
     }
 
-    private void startService() {
-        Intent service = new Intent(this, SmsService.class);
-        startForegroundService(service);
-        Toast.makeText(this, "Service demarre!", Toast.LENGTH_SHORT).show();
+    private void updateStatus() {
+        boolean ok = isAccessibilityEnabled();
+        tvStatus.setText(ok ?
+            "Service actif - SMS captures en arriere-plan" :
+            "ATTENTION: Accessibilite non activee - Clique sur le bouton orange");
+        tvStatus.setBackgroundColor(ok ? 0xFFdcfce7 : 0xFFfef3c7);
+        tvStatus.setTextColor(ok ? 0xFF166534 : 0xFF92400e);
     }
 
-    private void requestPermissions() {
-        String[] perms = {Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS};
-        for (String p : perms) {
-            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, perms, 1);
-                break;
-            }
+    private boolean isAccessibilityEnabled() {
+        AccessibilityManager am = (AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
+        List<AccessibilityServiceInfo> services = am.getEnabledAccessibilityServiceList(
+            AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
+        for (AccessibilityServiceInfo s : services)
+            if (s.getId().contains(getPackageName())) return true;
+        return false;
+    }
+
+    private void requestAllPermissions() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED)
+                ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
         }
+        ActivityCompat.requestPermissions(this,
+            new String[]{Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS}, 1000);
+    }
+
+    private Button btn(String text, int color) {
+        Button b = new Button(this);
+        b.setText(text); b.setBackgroundColor(color); b.setTextColor(0xFFFFFFFF);
+        return b;
+    }
+
+    private EditText input(String hint) {
+        EditText et = new EditText(this);
+        et.setHint(hint); et.setPadding(16,12,16,12); et.setBackgroundColor(0xFFFFFFFF);
+        return et;
+    }
+
+    private TextView label(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text); tv.setTextColor(0xFF1a237e); tv.setTextSize(13);
+        return tv;
+    }
+
+    private View spacer(int h) {
+        View v = new View(this);
+        v.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, h));
+        return v;
     }
 }
