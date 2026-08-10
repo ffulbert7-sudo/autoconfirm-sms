@@ -1,0 +1,11 @@
+R_DEF: Internal format may change without notice
+local
+id btnSave
+id btnStart
+id etSender1
+id etSender2
+id etSender3
+id etToken
+id etUrl
+layout activity_main
+string app_name
