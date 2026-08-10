@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AutoConfirm SMS</string>
+    <string name="accessibility_description">Capture SMS Mobile Money pour confirmation automatique</string>
 </resources>
