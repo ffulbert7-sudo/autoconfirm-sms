@@ -38,9 +38,13 @@ public class SmsNotificationListener extends NotificationListenerService {
                         fullText.contains("FCFA de") ||
                         fullText.contains("MobileMoney");
 
-        if (!isWave && !isOrange && !isMtn) return;
+        boolean isReddy = pkg.contains("reddy") ||
+                          fullText.contains("Reddy") ||
+                          fullText.contains("reddy");
 
-        String sender = isWave ? "Wave" : (isOrange ? "Orange" : "MobileMoney");
+        if (!isWave && !isOrange && !isMtn && !isReddy) return;
+
+        String sender = isWave ? "Wave" : (isOrange ? "Orange" : (isMtn ? "MobileMoney" : "Reddy"));
         Log.d(TAG, "Mobile Money detecte! sender=" + sender + " msg=" + fullText);
 
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
