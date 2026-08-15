@@ -30,8 +30,10 @@ public class SmsNotificationListener extends NotificationListenerService {
 
         // ── Reddy / Web Management Bot ──────────────────────────
         boolean isApproved = fullText.contains("APPROVED");
-        boolean isDeposit = fullText.contains("Deposit Request");
+        boolean isDeposit = fullText.contains("Deposit Request") || fullText.contains("Deposit Request");
         boolean isWithdrawal = fullText.contains("Withdrawal Request");
+        // Log tous les packages pour debug
+        Log.d(TAG, "ALL notif: pkg=" + pkg + " approved=" + isApproved + " deposit=" + isDeposit);
 
         if (isApproved && isDeposit && !isWithdrawal) {
             // Traiter chaque carte individuellement (notifications groupees)
