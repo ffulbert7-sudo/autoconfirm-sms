@@ -44,14 +44,19 @@ public class SmsNotificationListener extends NotificationListenerService {
 
         if (!isWave && !isOrange && !isMtn && !isReddy) return;
 
-        String sender = isWave ? "Wave" : (isOrange ? "Orange" : (isMtn ? "MobileMoney" : "Reddy"));
-        Log.d(TAG, "Mobile Money detecte! sender=" + sender + " msg=" + fullText);
-
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String webhookUrl = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
         String token = prefs.getString("token", "");
 
-        sendToWebhook(webhookUrl, token, sender, fullText.trim());
+        if (isReddy) {
+            String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
+            Log.d(TAG, "REDDY detecte! -> " + reddyUrl);
+            sendToWebhook(reddyUrl, token, "Reddy", fullText.trim());
+        } else {
+            String sender = isWave ? "Wave" : (isOrange ? "Orange" : "MobileMoney");
+            Log.d(TAG, "Mobile Money detecte! sender=" + sender);
+            sendToWebhook(webhookUrl, token, sender, fullText.trim());
+        }
     }
 
     @Override
