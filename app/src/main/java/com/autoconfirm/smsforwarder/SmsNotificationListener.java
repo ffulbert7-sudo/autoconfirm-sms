@@ -61,6 +61,17 @@ public class SmsNotificationListener extends NotificationListenerService {
             return;
         }
 
+        // ── Reddy (confirmations manuelles managment.io) ────────
+        boolean isApproved = fullText.contains("APPROVED");
+        boolean isDeposit = fullText.contains("Deposit");
+        boolean isWithdrawal = fullText.contains("Withdrawal");
+        if (isApproved && isDeposit && !isWithdrawal) {
+            String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
+            Log.d(TAG, "REDDY APPROVED Deposit -> " + reddyUrl);
+            sendToWebhook(reddyUrl, token, "Reddy", fullText);
+            return;
+        }
+
         // ── Mobile Money (Wave/Orange/MTN) ──────────────────────
         boolean isWave = pkg.contains("wave") ||
                          fullText.contains("avez recu") ||
