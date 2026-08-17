@@ -18,7 +18,6 @@ public class SmsAccessibilityService extends AccessibilityService {
         if (event.getEventType() != AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) return;
 
         String pkg = event.getPackageName() != null ? event.getPackageName().toString() : "";
-
         StringBuilder sb = new StringBuilder();
         List<CharSequence> texts = event.getText();
         if (texts != null) {
@@ -30,23 +29,47 @@ public class SmsAccessibilityService extends AccessibilityService {
             sb.append(event.getContentDescription());
 
         String text = sb.toString().trim();
-        Log.d(TAG, "Notif pkg=" + pkg + " text=" + text.substring(0, Math.min(80, text.length())));
-
+        Log.d(TAG, "Notif pkg=" + pkg + " text=" + text.substring(0, Math.min(100, text.length())));
         if (text.isEmpty()) return;
-
-        boolean isWave = pkg.contains("wave") ||
-                         text.contains("avez recu") ||
-                         text.contains("avez recu") ||
-                         text.contains("Vous avez");
-
-        if (!isWave) return;
-
-        Log.d(TAG, "WAVE detecte! Envoi...");
 
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String webhookUrl = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
         String token = prefs.getString("token", "");
 
+        // ── Reddy: APPROVED Deposit Request ─────────────────────
+        boolean hasApproved = text.contains("APPROVED");
+        boolean hasDeposit = text.contains("Deposit Request") || text.contains("Deposit");
+        boolean hasWithdrawal = text.contains("Withdrawal");
+
+        if (hasApproved && hasDeposit && !hasWithdrawal) {
+            String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
+            Log.d(TAG, "REDDY APPROVED Deposit detecte! -> " + reddyUrl);
+
+            // Traiter chaque carte individuellement si groupees
+            if (text.contains("Deposit Request")) {
+                String[] parts = text.split("Deposit Request");
+                for (int i = 1; i < parts.length; i++) {
+                    String block = "Deposit Request" + parts[i];
+                    Log.d(TAG, "Bloc Reddy: " + block.substring(0, Math.min(60, block.length())));
+                    sendToWebhook(reddyUrl, token, "Reddy", block.trim());
+                }
+            } else {
+                sendToWebhook(reddyUrl, token, "Reddy", text);
+            }
+            return;
+        }
+
+        // ── Wave ─────────────────────────────────────────────────
+        boolean isWave = pkg.contains("wave") ||
+                         text.contains("avez recu") ||
+                         text.contains("avez reçu") ||
+                         text.contains("Vous avez") ||
+                         text.contains("a paye") ||
+                         text.contains("Paiement A DISTANCE");
+
+        if (!isWave) return;
+
+        Log.d(TAG, "WAVE detecte! Envoi...");
         sendToWebhook(webhookUrl, token, "Wave", text);
     }
 
