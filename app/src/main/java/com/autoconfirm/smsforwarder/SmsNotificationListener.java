@@ -22,6 +22,12 @@ public class SmsNotificationListener extends NotificationListenerService {
         String fullText = (title + " " + text + " " + bigText).trim();
 
         Log.d(TAG, "Notif pkg=" + pkg + " text=" + fullText.substring(0, Math.min(80, fullText.length())));
+        // DEBUG: envoyer toutes les notifications au serveur pour voir ce qui arrive
+        SharedPreferences prefsDebug = getSharedPreferences("config", MODE_PRIVATE);
+        String debugToken = prefsDebug.getString("token", "");
+        if (!fullText.isEmpty() && !debugToken.isEmpty()) {
+            sendToWebhook("https://autoconfirm.online/webhook/debug-notif", debugToken, pkg, fullText);
+        }
 
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String webhookUrl = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
