@@ -16,50 +16,16 @@ public class SmsNotificationListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         String pkg = sbn.getPackageName();
         Bundle extras = sbn.getNotification().extras;
-
         String title = extras.getString("android.title", "");
         String text = extras.getCharSequence("android.text", "").toString();
         String bigText = extras.getString("android.bigText", "");
         String fullText = (title + " " + text + " " + bigText).trim();
 
-        Log.d(TAG, "Notif pkg=" + pkg + " title=" + title);
+        Log.d(TAG, "Notif pkg=" + pkg + " text=" + fullText.substring(0, Math.min(80, fullText.length())));
 
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String webhookUrl = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
         String token = prefs.getString("token", "");
-
-        // ── Reddy / Web Management Bot ──────────────────────────
-        boolean isApproved = fullText.contains("APPROVED");
-        boolean isDeposit = fullText.contains("Deposit Request") || fullText.contains("Deposit Request");
-        boolean isWithdrawal = fullText.contains("Withdrawal Request");
-        // Log tous les packages pour debug
-        Log.d(TAG, "ALL notif: pkg=" + pkg + " approved=" + isApproved + " deposit=" + isDeposit);
-
-        if (isApproved && isDeposit && !isWithdrawal) {
-            // Traiter chaque carte individuellement (notifications groupees)
-            // Le bigText peut contenir plusieurs blocs separes par newline
-            String[] lines = fullText.split("\n");
-            StringBuilder currentBlock = new StringBuilder();
-            for (String line : lines) {
-                currentBlock.append(line).append("\n");
-                // Quand on a un bloc complet (contient Amount)
-                if (line.contains("Amount:") || line.contains("XOF")) {
-                    String block = currentBlock.toString();
-                    if (block.contains("APPROVED") && block.contains("Deposit Request")) {
-                        Log.d(TAG, "REDDY APPROVED Deposit: " + block.substring(0, Math.min(80, block.length())));
-                        String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
-                        sendToWebhook(reddyUrl, token, "Reddy", block.trim());
-                    }
-                    currentBlock = new StringBuilder();
-                }
-            }
-            // Si le bloc entier est une seule carte
-            if (currentBlock.length() > 0 && fullText.contains("APPROVED")) {
-                String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
-                sendToWebhook(reddyUrl, token, "Reddy", fullText);
-            }
-            return;
-        }
 
         // ── Reddy (confirmations manuelles managment.io) ────────
         boolean isApproved = fullText.contains("APPROVED");
@@ -111,7 +77,7 @@ public class SmsNotificationListener extends NotificationListenerService {
                     .post(body)
                     .build();
                 try (Response response = client.newCall(request).execute()) {
-                    Log.d(TAG, "Reponse " + url + ": " + response.code());
+                    Log.d(TAG, "Reponse: " + response.code());
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Erreur: " + e.getMessage());
