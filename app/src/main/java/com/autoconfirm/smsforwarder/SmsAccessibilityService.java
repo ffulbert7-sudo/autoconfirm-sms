@@ -43,7 +43,7 @@ public class SmsAccessibilityService extends AccessibilityService {
         String token = prefs.getString("token", "");
 
         // ── Reddy: APPROVED Deposit Request ─────────────────────
-        boolean hasApproved = text.contains("APPROVED");
+        boolean hasApproved = text.contains("APPROVED") || pkg.contains("insystem");
         boolean hasDeposit = text.contains("Deposit Request") || text.contains("Deposit");
         boolean hasWithdrawal = text.contains("Withdrawal");
 
@@ -66,7 +66,7 @@ public class SmsAccessibilityService extends AccessibilityService {
         }
 
         // ── Wave ─────────────────────────────────────────────────
-        boolean isWave = pkg.contains("wave") ||
+        boolean isWave = pkg.equals("com.wave.personal") || pkg.contains("wave") ||
                          text.contains("avez recu") ||
                          text.contains("avez reçu") ||
                          text.contains("Vous avez") ||
