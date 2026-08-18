@@ -48,7 +48,7 @@ public class SmsAccessibilityService extends AccessibilityService {
         boolean hasWithdrawal = text.contains("Withdrawal");
 
         if (isInsystem && hasApproved && !hasWithdrawal) {
-            String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
+            String reddyUrl = "https://autoconfirm.online/webhook/reddy";
             Log.d(TAG, "REDDY APPROVED Deposit detecte! -> " + reddyUrl);
 
             // Traiter chaque carte individuellement si groupees
