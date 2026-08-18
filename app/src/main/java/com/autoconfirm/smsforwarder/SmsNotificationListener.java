@@ -34,12 +34,12 @@ public class SmsNotificationListener extends NotificationListenerService {
         String token = prefs.getString("token", "");
 
         // ── Reddy (confirmations manuelles managment.io) ────────
+        boolean isInsystem = pkg.contains("insystem");
         boolean isApproved = fullText.contains("APPROVED");
-        boolean isDeposit = fullText.contains("Deposit");
         boolean isWithdrawal = fullText.contains("Withdrawal");
-        if (isApproved && isDeposit && !isWithdrawal) {
-            String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
-            Log.d(TAG, "REDDY APPROVED Deposit -> " + reddyUrl);
+        if (isInsystem && isApproved && !isWithdrawal) {
+            String reddyUrl = "https://autoconfirm.online/webhook/reddy";
+            Log.d(TAG, "REDDY APPROVED -> " + reddyUrl);
             sendToWebhook(reddyUrl, token, "Reddy", fullText);
             return;
         }
