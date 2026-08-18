@@ -42,12 +42,12 @@ public class SmsAccessibilityService extends AccessibilityService {
         String webhookUrl = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
         String token = prefs.getString("token", "");
 
-        // ── Reddy: APPROVED Deposit Request ─────────────────────
-        boolean hasApproved = text.contains("APPROVED") || pkg.contains("insystem");
-        boolean hasDeposit = text.contains("Deposit Request") || text.contains("Deposit");
+        // ── Reddy: APPROVED via com.insystem.messenger ──────────
+        boolean isInsystem = pkg.contains("insystem");
+        boolean hasApproved = text.contains("APPROVED");
         boolean hasWithdrawal = text.contains("Withdrawal");
 
-        if (hasApproved && hasDeposit && !hasWithdrawal) {
+        if (isInsystem && hasApproved && !hasWithdrawal) {
             String reddyUrl = webhookUrl.replace("/webhook/saas", "/webhook/reddy");
             Log.d(TAG, "REDDY APPROVED Deposit detecte! -> " + reddyUrl);
 
