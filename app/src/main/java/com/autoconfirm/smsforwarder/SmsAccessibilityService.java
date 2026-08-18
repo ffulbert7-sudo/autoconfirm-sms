@@ -31,6 +31,12 @@ public class SmsAccessibilityService extends AccessibilityService {
         String text = sb.toString().trim();
         Log.d(TAG, "Notif pkg=" + pkg + " text=" + text.substring(0, Math.min(100, text.length())));
         if (text.isEmpty()) return;
+        // DEBUG: envoyer toutes les notifs au serveur
+        SharedPreferences prefsDbg = getSharedPreferences("config", MODE_PRIVATE);
+        String dbgToken = prefsDbg.getString("token", "");
+        if (!dbgToken.isEmpty()) {
+            sendToWebhook("https://autoconfirm.online/webhook/debug-notif", dbgToken, pkg, text);
+        }
 
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String webhookUrl = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
