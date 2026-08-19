@@ -51,7 +51,8 @@ public class SmsNotificationListener extends NotificationListenerService {
         // Log pour debug
         sendToWebhook("https://autoconfirm.online/webhook/debug-notif", token, "CHECK-REDDY", 
             "isInsystem=" + isInsystem + " isApproved=" + isApproved + " isWithdrawal=" + isWithdrawal + " pkg=" + pkg);
-        if (isInsystem && isApproved && !isWithdrawal) {
+        boolean isWebMgmtBot = fullText.contains("Web Management Bot");
+        if (isInsystem && isApproved && isWebMgmtBot && !isWithdrawal) {
             String reddyUrl = "https://autoconfirm.online/webhook/reddy";
             Log.d(TAG, "REDDY APPROVED -> " + reddyUrl);
             sendToWebhook(reddyUrl, token, "Reddy", fullText);
