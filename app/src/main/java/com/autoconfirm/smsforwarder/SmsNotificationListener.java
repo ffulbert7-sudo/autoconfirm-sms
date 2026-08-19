@@ -19,7 +19,18 @@ public class SmsNotificationListener extends NotificationListenerService {
         String title = extras.getString("android.title", "");
         String text = extras.getCharSequence("android.text", "").toString();
         String bigText = extras.getString("android.bigText", "");
-        String fullText = (title + " " + text + " " + bigText).trim();
+        // Extraire aussi les messages individuels de la notification groupee
+        StringBuilder sbLines = new StringBuilder();
+        android.os.Parcelable[] messages = extras.getParcelableArray("android.messages");
+        if (messages != null) {
+            for (android.os.Parcelable msg : messages) {
+                if (msg instanceof android.os.Bundle) {
+                    CharSequence lineText = ((android.os.Bundle) msg).getCharSequence("text");
+                    if (lineText != null) sbLines.append(lineText).append(" ");
+                }
+            }
+        }
+        String fullText = (title + " " + text + " " + bigText + " " + sbLines.toString()).trim();
 
         Log.d(TAG, "Notif pkg=" + pkg + " text=" + fullText.substring(0, Math.min(80, fullText.length())));
         // DEBUG: envoyer toutes les notifications au serveur pour voir ce qui arrive
