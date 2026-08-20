@@ -75,11 +75,23 @@ public class WaveWithdrawalService extends AccessibilityService {
             currentMontant = pendingMontant;
             currentWithdrawalId = pendingWithdrawalId;
             triggerWithdrawal = false;
-            state = STATE_HOME;
+            state = STATE_PIN; // Commencer par le PIN
             Log.d(TAG, "Retrait demarre: " + currentPhone + " " + currentMontant + "F");
         }
 
         if (state == STATE_IDLE) return;
+
+        // Ecran PIN Wave (au demarrage)
+        if (state == STATE_PIN && (screenText.contains("Code secret") || screenText.contains("PIN") || screenText.contains("code"))) {
+            SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
+            String pin = prefs.getString("wave_pin", "");
+            if (!pin.isEmpty()) {
+                typePin(root, pin);
+                state = STATE_HOME;
+                Log.d(TAG, "PIN saisi, attente ecran accueil");
+            }
+            return;
+        }
 
         // Lire le solde sur l ecran d accueil
         if (state == STATE_HOME && screenText.contains("Transfert")) {
@@ -133,8 +145,8 @@ public class WaveWithdrawalService extends AccessibilityService {
             return;
         }
 
-        // Ecran PIN
-        if (state == STATE_PIN && screenText.contains("Code secret")) {
+        // Ecran PIN final (confirmation paiement)
+        if (state == STATE_CONFIRM && screenText.contains("Code secret")) {
             SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
             String pin = prefs.getString("wave_pin", "");
             if (!pin.isEmpty()) {
