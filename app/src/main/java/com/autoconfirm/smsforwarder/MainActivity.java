@@ -135,6 +135,17 @@ public class MainActivity extends Activity {
         root.addView(btnSavePin);
         root.addView(spacer(8));
 
+        // Switch auto-dismiss notifications
+        android.widget.Switch swDismiss = new android.widget.Switch(this);
+        swDismiss.setText("Balayer notifications auto (1 min)");
+        swDismiss.setChecked(prefs.getBoolean("auto_dismiss_notif", false));
+        swDismiss.setOnCheckedChangeListener((b, checked) -> {
+            prefs.edit().putBoolean("auto_dismiss_notif", checked).apply();
+            Toast.makeText(this, checked ? "Balayage auto ACTIVE" : "Balayage auto DESACTIVE", Toast.LENGTH_SHORT).show();
+        });
+        root.addView(swDismiss);
+        root.addView(spacer(8));
+
         // Switch ON/OFF retraits
         android.widget.Switch swWithdraw = new android.widget.Switch(this);
         swWithdraw.setText("Activer retraits Wave");

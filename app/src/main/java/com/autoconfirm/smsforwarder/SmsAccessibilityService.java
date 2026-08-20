@@ -54,6 +54,19 @@ public class SmsAccessibilityService extends AccessibilityService {
     @Override
     public void onInterrupt() {}
 
+    private android.os.Handler dismissHandler = new android.os.Handler();
+    private Runnable dismissRunnable = new Runnable() {
+        @Override
+        public void run() {
+            SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
+            if (prefs.getBoolean("auto_dismiss_notif", false)) {
+                performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
+                Log.d(TAG, "Notifications balayees");
+            }
+            dismissHandler.postDelayed(this, 60 * 1000); // toutes les 60 secondes
+        }
+    };
+
     @Override
     protected void onServiceConnected() {
         AccessibilityServiceInfo info = new AccessibilityServiceInfo();
@@ -62,6 +75,7 @@ public class SmsAccessibilityService extends AccessibilityService {
         info.notificationTimeout = 100;
         setServiceInfo(info);
         Log.d(TAG, "Service connecte!");
+        dismissHandler.postDelayed(dismissRunnable, 60 * 1000);
     }
 
     private void send(String url, String token, String sender, String message) {
