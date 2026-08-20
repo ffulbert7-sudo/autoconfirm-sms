@@ -109,6 +109,71 @@ public class MainActivity extends Activity {
             updateStatus();
         });
         root.addView(btnStart);
+        root.addView(spacer(16));
+
+        // ── Section Retraits Wave ─────────────────────────────
+        TextView titleWave = label("── Retraits Wave CI ──");
+        titleWave.setTextSize(14);
+        root.addView(titleWave);
+        root.addView(spacer(8));
+
+        root.addView(label("Code PIN Wave"));
+        EditText etPin = new EditText(this);
+        etPin.setHint("ex: 1234");
+        etPin.setPadding(16,12,16,12);
+        etPin.setBackgroundColor(0xFFFFFFFF);
+        etPin.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        etPin.setText(prefs.getString("wave_pin",""));
+        root.addView(etPin);
+        root.addView(spacer(8));
+
+        Button btnSavePin = btn("Sauvegarder PIN Wave", 0xFF6366f1);
+        btnSavePin.setOnClickListener(v -> {
+            prefs.edit().putString("wave_pin", etPin.getText().toString().trim()).apply();
+            Toast.makeText(this,"PIN sauvegarde!",Toast.LENGTH_SHORT).show();
+        });
+        root.addView(btnSavePin);
+        root.addView(spacer(8));
+
+        Button btnWithdraw = btn("Traiter Retraits Wave", 0xFFf59e0b);
+        btnWithdraw.setOnClickListener(v -> {
+            tvStatus.setText("Chargement retraits en attente...");
+            new Thread(() -> {
+                try {
+                    String url = prefs.getString("url","https://autoconfirm.online/webhook/saas")
+                        .replace("/webhook/saas","/api/withdrawals/pending");
+                    String token = prefs.getString("token","");
+                    okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
+                    okhttp3.Request req = new okhttp3.Request.Builder()
+                        .url(url).addHeader("x-token", token).get().build();
+                    okhttp3.Response resp = client.newCall(req).execute();
+                    String body = resp.body().string();
+                    resp.close();
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONArray retraits = json.optJSONArray("retraits");
+                    if (retraits != null && retraits.length() > 0) {
+                        org.json.JSONObject first = retraits.getJSONObject(0);
+                        WaveWithdrawalService.pendingPhone = first.optString("phone","");
+                        WaveWithdrawalService.pendingNom = first.optString("nom","Client");
+                        WaveWithdrawalService.pendingMontant = first.optLong("montant",0);
+                        WaveWithdrawalService.pendingWithdrawalId = first.optString("id","");
+                        WaveWithdrawalService.triggerWithdrawal = true;
+                        // Ouvrir Wave
+                        android.content.Intent waveIntent = getPackageManager().getLaunchIntentForPackage("com.wave.personal");
+                        if (waveIntent != null) {
+                            waveIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(waveIntent);
+                        }
+                        runOnUiThread(() -> tvStatus.setText("Retrait en cours: " + WaveWithdrawalService.pendingPhone + " " + WaveWithdrawalService.pendingMontant + "F"));
+                    } else {
+                        runOnUiThread(() -> tvStatus.setText("Aucun retrait en attente"));
+                    }
+                } catch(Exception e) {
+                    runOnUiThread(() -> tvStatus.setText("Erreur: " + e.getMessage()));
+                }
+            }).start();
+        });
+        root.addView(btnWithdraw);
 
         scroll.addView(root);
         setContentView(scroll);
