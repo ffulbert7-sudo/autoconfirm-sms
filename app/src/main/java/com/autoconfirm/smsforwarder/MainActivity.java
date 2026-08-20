@@ -135,8 +135,23 @@ public class MainActivity extends Activity {
         root.addView(btnSavePin);
         root.addView(spacer(8));
 
+        // Switch ON/OFF retraits
+        android.widget.Switch swWithdraw = new android.widget.Switch(this);
+        swWithdraw.setText("Activer retraits Wave");
+        swWithdraw.setChecked(prefs.getBoolean("wave_withdrawal_enabled", false));
+        swWithdraw.setOnCheckedChangeListener((b, checked) -> {
+            prefs.edit().putBoolean("wave_withdrawal_enabled", checked).apply();
+            Toast.makeText(this, checked ? "Retraits Wave ACTIVES" : "Retraits Wave DESACTIVES", Toast.LENGTH_SHORT).show();
+        });
+        root.addView(swWithdraw);
+        root.addView(spacer(8));
+
         Button btnWithdraw = btn("Traiter Retraits Wave", 0xFFf59e0b);
         btnWithdraw.setOnClickListener(v -> {
+            if (!prefs.getBoolean("wave_withdrawal_enabled", false)) {
+                Toast.makeText(this, "Retraits desactives — active le switch d abord", Toast.LENGTH_SHORT).show();
+                return;
+            }
             tvStatus.setText("Chargement retraits en attente...");
             new Thread(() -> {
                 try {
