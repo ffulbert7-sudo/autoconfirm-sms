@@ -149,7 +149,7 @@ public class WaveWithdrawalService extends AccessibilityService {
 
     private void extractSolde(String text) {
         try {
-            java.util.regex.Pattern p = java.util.regex.Pattern.compile("([\d\s]+)\s*F");
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("([0-9 ]+) *F");
             java.util.regex.Matcher m = p.matcher(text);
             if (m.find()) {
                 String s = m.group(1).replaceAll("\\s+", "").trim();
