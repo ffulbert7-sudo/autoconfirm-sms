@@ -5,4 +5,5 @@
     android:packageNames="com.wave.personal"
     android:notificationTimeout="100"
     android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
     android:description="@string/accessibility_description"/>
