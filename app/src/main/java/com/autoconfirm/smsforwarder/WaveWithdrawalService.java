@@ -184,10 +184,11 @@ public class WaveWithdrawalService extends AccessibilityService {
 
     private void extractSolde(String text) {
         try {
-            java.util.regex.Pattern p = java.util.regex.Pattern.compile("([0-9 ]+) *F");
+            // Format Wave: "5.000F" ou "10 000F" ou "1 234 567F"
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("([0-9][0-9. ]+[0-9])F");
             java.util.regex.Matcher m = p.matcher(text);
             if (m.find()) {
-                String s = m.group(1).replaceAll("\\s+", "").trim();
+                String s = m.group(1).replace(".", "").replace(" ", "").trim();
                 soldeWave = Long.parseLong(s);
                 Log.d(TAG, "Solde Wave: " + soldeWave + "F");
             }
