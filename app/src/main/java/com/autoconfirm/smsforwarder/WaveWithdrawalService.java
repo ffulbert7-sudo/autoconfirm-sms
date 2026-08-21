@@ -117,10 +117,11 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
 
         // Lire le solde sur l ecran d accueil
-        if (state == STATE_HOME && screenText.contains("Transfert")) {
+        if ((state == STATE_HOME || state == STATE_PIN) && screenText.contains("Transfert") && screenText.contains("Scanner")) {
+            state = STATE_HOME;
             // Extraire le solde
             extractSolde(screenText);
-            if (soldeWave >= 0 && soldeWave < currentMontant) {
+            if (soldeWave > 0 && soldeWave < currentMontant) {
                 Log.d(TAG, "Solde insuffisant: " + soldeWave + "F < " + currentMontant + "F");
                 notifyServer("solde_insuffisant");
                 state = STATE_IDLE;
