@@ -140,9 +140,14 @@ public class WaveWithdrawalService extends AccessibilityService {
                     state = STATE_IDLE;
                     return;
                 }
-                clickButton(root, "Transfert");
+                // Cliquer le premier bouton Transfert (la grille, pas l historique)
+                clickFirstButton(root, "Transfert");
                 state = STATE_SEND_MONEY;
-                Log.d(TAG, "Click Transfert");
+                Log.d(TAG, "Click Transfert -> SEND_MONEY");
+            } else if (state == STATE_SEND_MONEY) {
+                // On est revenu a l accueil depuis SEND_MONEY - reclicker
+                Log.d(TAG, "Retour accueil depuis SEND_MONEY - reclicker");
+                clickFirstButton(root, "Transfert");
             }
             return;
         }
@@ -214,6 +219,24 @@ public class WaveWithdrawalService extends AccessibilityService {
             }
         } catch(Exception e) {
             Log.e(TAG, "Erreur extraction solde: " + e.getMessage());
+        }
+    }
+
+    private void clickFirstButton(AccessibilityNodeInfo root, String text) {
+        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+        for (AccessibilityNodeInfo node : nodes) {
+            AccessibilityNodeInfo parent = node.getParent();
+            // Chercher un parent clickable proche (max 3 niveaux)
+            AccessibilityNodeInfo target = node;
+            for (int i = 0; i < 3; i++) {
+                if (target.isClickable()) {
+                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    Log.d(TAG, "ClickFirst: " + text);
+                    return;
+                }
+                if (target.getParent() != null) target = target.getParent();
+                else break;
+            }
         }
     }
 
