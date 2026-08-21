@@ -222,6 +222,33 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
     }
 
+    private void tapAboveText(AccessibilityNodeInfo root, String text) {
+        // Trouver le texte et tapper au-dessus (sur l icone)
+        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+        for (AccessibilityNodeInfo node : nodes) {
+            android.graphics.Rect bounds = new android.graphics.Rect();
+            node.getBoundsInScreen(bounds);
+            int x = bounds.centerX();
+            // Tapper au-dessus du texte - l icone est environ 80px au-dessus du centre du texte
+            int y = bounds.top - 60;
+            if (y < 0) y = bounds.centerY();
+            Log.d(TAG, "tapAboveText: " + text + " at " + x + "," + y + " (text bounds: " + bounds + ")");
+            tapAt(x, y);
+            return;
+        }
+    }
+
+    private void tapAt(int x, int y) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(x, y);
+            android.accessibilityservice.GestureDescription.Builder gb = new android.accessibilityservice.GestureDescription.Builder();
+            gb.addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100));
+            dispatchGesture(gb.build(), null, null);
+            Log.d(TAG, "Tap at " + x + "," + y);
+        }
+    }
+
     private void clickFirstButton(AccessibilityNodeInfo root, String text) {
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
         for (AccessibilityNodeInfo node : nodes) {
