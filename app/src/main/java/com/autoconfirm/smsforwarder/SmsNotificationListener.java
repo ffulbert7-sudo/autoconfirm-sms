@@ -12,6 +12,28 @@ public class SmsNotificationListener extends NotificationListenerService {
     private static final String TAG = "AutoConfirmNotif";
     private static final MediaType JSON_TYPE = MediaType.get("application/json; charset=utf-8");
 
+
+    private android.os.Handler dismissHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable dismissRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
+                if (prefs.getBoolean("auto_dismiss_notif", false)) {
+                    cancelAllNotifications();
+                    Log.d(TAG, "Notifications balayees");
+                }
+            } catch(Exception e) {}
+            dismissHandler.postDelayed(this, 60 * 1000);
+        }
+    };
+
+    @Override
+    public void onListenerConnected() {
+        super.onListenerConnected();
+        dismissHandler.postDelayed(dismissRunnable, 60 * 1000);
+    }
+
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         String pkg = sbn.getPackageName();
