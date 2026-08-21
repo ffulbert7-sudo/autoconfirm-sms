@@ -227,11 +227,31 @@ public class WaveWithdrawalService extends AccessibilityService {
     }
 
     private void typePin(AccessibilityNodeInfo root, String pin) {
-        for (char c : pin.toCharArray()) {
-            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(String.valueOf(c));
-            if (!nodes.isEmpty()) {
-                nodes.get(0).performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        for (char digit : pin.toCharArray()) {
+            // Chercher le bouton exact par texte egal (pas contains)
+            clickExactDigit(root, String.valueOf(digit));
+            try { Thread.sleep(300); } catch(Exception e) {}
+        }
+    }
+
+    private void clickExactDigit(AccessibilityNodeInfo node, String digit) {
+        if (node == null) return;
+        CharSequence text = node.getText();
+        if (text != null && text.toString().trim().equals(digit)) {
+            if (node.isClickable()) {
+                node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                Log.d(TAG, "Click digit: " + digit);
+                return;
             }
+            AccessibilityNodeInfo parent = node.getParent();
+            if (parent != null && parent.isClickable()) {
+                parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                Log.d(TAG, "Click parent digit: " + digit);
+                return;
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            clickExactDigit(node.getChild(i), digit);
         }
     }
 
