@@ -186,13 +186,16 @@ public class MainActivity extends Activity {
                         WaveWithdrawalService.pendingUserId = first.optString("user_id","");
                         WaveWithdrawalService.pendingSubagentId = first.optLong("subagent_id",0);
                         WaveWithdrawalService.pendingRefId = first.optLong("ref_id",0);
+                        // Mettre trigger AVANT d ouvrir Wave
                         WaveWithdrawalService.triggerWithdrawal = true;
-                        // Ouvrir Wave
-                        android.content.Intent waveIntent = getPackageManager().getLaunchIntentForPackage("com.wave.personal");
-                        if (waveIntent != null) {
-                            waveIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(waveIntent);
-                        }
+                        // Attendre 500ms puis ouvrir Wave
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            android.content.Intent waveIntent = getPackageManager().getLaunchIntentForPackage("com.wave.personal");
+                            if (waveIntent != null) {
+                                waveIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                startActivity(waveIntent);
+                            }
+                        }, 500);
                         runOnUiThread(() -> tvStatus.setText("Retrait en cours: " + WaveWithdrawalService.pendingPhone + " " + WaveWithdrawalService.pendingMontant + "F"));
                     } else {
                         runOnUiThread(() -> tvStatus.setText("Aucun retrait en attente"));
