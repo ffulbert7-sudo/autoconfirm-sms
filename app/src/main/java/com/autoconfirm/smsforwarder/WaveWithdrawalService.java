@@ -33,6 +33,9 @@ public class WaveWithdrawalService extends AccessibilityService {
     private String currentNom = "";
     private long currentMontant = 0;
     private String currentWithdrawalId = "";
+    private String currentUserId = "";
+    private long currentSubagentId = 0;
+    private long currentRefId = 0;
     private long soldeWave = -1;
 
     // Statique pour recevoir l ordre depuis MainActivity
@@ -41,6 +44,9 @@ public class WaveWithdrawalService extends AccessibilityService {
     public static String pendingNom = "";
     public static long pendingMontant = 0;
     public static String pendingWithdrawalId = "";
+    public static String pendingUserId = "";
+    public static long pendingSubagentId = 0;
+    public static long pendingRefId = 0;
     public static boolean triggerWithdrawal = false;
 
     @Override
@@ -74,6 +80,9 @@ public class WaveWithdrawalService extends AccessibilityService {
             currentNom = pendingNom;
             currentMontant = pendingMontant;
             currentWithdrawalId = pendingWithdrawalId;
+            currentUserId = pendingUserId;
+            currentSubagentId = pendingSubagentId;
+            currentRefId = pendingRefId;
             triggerWithdrawal = false;
             state = STATE_PIN; // Commencer par le PIN
             Log.d(TAG, "Retrait demarre: " + currentPhone + " " + currentMontant + "F");
@@ -223,6 +232,19 @@ public class WaveWithdrawalService extends AccessibilityService {
         return sb.toString();
     }
 
+    // Image PNG 1x1 pixel minimal pour preuve
+    private static final byte[] MINIMAL_PNG = {
+        (byte)0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,
+        0x00,0x00,0x00,0x0d,0x49,0x48,0x44,0x52,
+        0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,
+        0x08,0x06,0x00,0x00,0x00,0x1f,0x15,(byte)0xc4,(byte)0x89,
+        0x00,0x00,0x00,0x10,0x49,0x44,0x41,0x54,
+        0x78,0x01,0x63,0x60,(byte)0xf8,(byte)0xcf,(byte)0xc0,0x00,
+        0x00,0x00,0x02,0x00,0x01,0x5e,0x22,0x11,
+        0x00,0x00,0x00,0x00,0x49,0x45,0x4e,0x44,
+        (byte)0xae,0x42,0x60,(byte)0x82
+    };
+
     private void notifyServer(String statut) {
         new Thread(() -> {
             try {
@@ -230,13 +252,23 @@ public class WaveWithdrawalService extends AccessibilityService {
                 String url = prefs.getString("url", "https://autoconfirm.online/webhook/saas");
                 String serverUrl = url.replace("/webhook/saas", "/api/withdrawals/confirm");
                 String token = prefs.getString("token", "");
+                OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .build();
+
+                String imageBase64 = android.util.Base64.encodeToString(MINIMAL_PNG, android.util.Base64.NO_WRAP);
+
                 JSONObject json = new JSONObject();
                 json.put("token", token);
                 json.put("withdrawal_id", currentWithdrawalId);
-                json.put("phone", currentPhone);
+                json.put("user_id", currentUserId);
+                json.put("subagent_id", currentSubagentId);
+                json.put("ref_id", currentRefId);
                 json.put("montant", currentMontant);
                 json.put("statut", statut);
-                OkHttpClient client = new OkHttpClient();
+                json.put("image_base64", imageBase64);
+
                 RequestBody body = RequestBody.create(json.toString(), JSON_TYPE);
                 Request req = new Request.Builder()
                     .url(serverUrl)
@@ -244,7 +276,7 @@ public class WaveWithdrawalService extends AccessibilityService {
                     .addHeader("Content-Type", "application/json")
                     .post(body).build();
                 Response resp = client.newCall(req).execute();
-                Log.d(TAG, "Notif serveur: " + resp.code());
+                Log.d(TAG, "Notif serveur: " + resp.code() + " " + resp.body().string());
                 resp.close();
             } catch(Exception e) {
                 Log.e(TAG, "Erreur notif: " + e.getMessage());

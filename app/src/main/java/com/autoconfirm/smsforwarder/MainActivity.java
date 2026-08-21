@@ -183,6 +183,9 @@ public class MainActivity extends Activity {
                         WaveWithdrawalService.pendingNom = first.optString("nom","Client");
                         WaveWithdrawalService.pendingMontant = first.optLong("montant",0);
                         WaveWithdrawalService.pendingWithdrawalId = first.optString("id","");
+                        WaveWithdrawalService.pendingUserId = first.optString("user_id","");
+                        WaveWithdrawalService.pendingSubagentId = first.optLong("subagent_id",0);
+                        WaveWithdrawalService.pendingRefId = first.optLong("ref_id",0);
                         WaveWithdrawalService.triggerWithdrawal = true;
                         // Ouvrir Wave
                         android.content.Intent waveIntent = getPackageManager().getLaunchIntentForPackage("com.wave.personal");
