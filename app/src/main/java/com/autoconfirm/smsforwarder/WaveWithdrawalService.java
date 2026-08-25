@@ -238,18 +238,27 @@ public class WaveWithdrawalService extends AccessibilityService {
     }
 
     private void tapAboveText(AccessibilityNodeInfo root, String text) {
-        // Trouver le texte et tapper au-dessus (sur l icone)
+        // Trouver tous les noeuds avec ce texte et logger leurs positions
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+        Log.d(TAG, "tapAboveText: " + nodes.size() + " noeuds trouves pour: " + text);
+        android.graphics.Rect bestBounds = null;
+        int bestY = Integer.MAX_VALUE;
+        // Prendre le noeud le plus haut sur l ecran (premier dans la grille)
         for (AccessibilityNodeInfo node : nodes) {
             android.graphics.Rect bounds = new android.graphics.Rect();
             node.getBoundsInScreen(bounds);
-            int x = bounds.centerX();
-            // Tapper au-dessus du texte - l icone est environ 80px au-dessus du centre du texte
-            int y = bounds.top - 60;
-            if (y < 0) y = bounds.centerY();
-            Log.d(TAG, "tapAboveText: " + text + " at " + x + "," + y + " (text bounds: " + bounds + ")");
+            Log.d(TAG, "  noeud: " + bounds + " clickable=" + node.isClickable());
+            if (bounds.top < bestY && bounds.top > 0) {
+                bestY = bounds.top;
+                bestBounds = bounds;
+            }
+        }
+        if (bestBounds != null) {
+            int x = bestBounds.centerX();
+            // Tapper au centre du texte (l icone et le texte forment un bloc)
+            int y = bestBounds.centerY();
+            Log.d(TAG, "tapAboveText: tap at " + x + "," + y + " bounds=" + bestBounds);
             tapAt(x, y);
-            return;
         }
     }
 
