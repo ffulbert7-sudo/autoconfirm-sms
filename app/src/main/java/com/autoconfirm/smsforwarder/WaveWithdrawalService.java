@@ -190,6 +190,21 @@ public class WaveWithdrawalService extends AccessibilityService {
             return;
         }
 
+        // Transfert effectue avec succes
+        if (state == STATE_CONFIRM && (screenText.contains("Effectué") || screenText.contains("Effectue"))) {
+            Log.d(TAG, "Transfert effectue avec succes!");
+            state = STATE_IDLE;
+            notifyServer("success");
+            return;
+        }
+
+        // Fermer selecteur de pays si ouvert
+        if (screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays")) {
+            clickButton(root, "Fermer");
+            Log.d(TAG, "Fermeture selecteur pays");
+            return;
+        }
+
         // PIN final apres confirmation
         if (state == STATE_CONFIRM && (screenText.contains("code secret") || screenText.contains("Code secret"))) {
             SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
