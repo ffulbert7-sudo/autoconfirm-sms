@@ -250,12 +250,18 @@ public class WaveWithdrawalService extends AccessibilityService {
                 AccessibilityNodeInfo r = getRootInActiveWindow();
                 if (r == null) continue;
                 List<AccessibilityNodeInfo> nodes = r.findAccessibilityNodeInfosByText(text);
+                // Taille ecran pour calculer la zone de la grille (40-60% hauteur)
+                android.graphics.Point sz = new android.graphics.Point();
+                ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(sz);
+                int minY = (int)(sz.y * 0.35f);
+                int maxY = (int)(sz.y * 0.62f);
                 android.graphics.Rect bestBounds = null;
                 int bestY = Integer.MAX_VALUE;
                 for (AccessibilityNodeInfo node : nodes) {
                     android.graphics.Rect b = new android.graphics.Rect();
                     node.getBoundsInScreen(b);
-                    if (b.top < bestY && b.top > 100) {
+                    // Chercher le noeud dans la zone de la grille
+                    if (b.centerY() >= minY && b.centerY() <= maxY && b.top < bestY) {
                         bestY = b.top;
                         bestBounds = b;
                     }
