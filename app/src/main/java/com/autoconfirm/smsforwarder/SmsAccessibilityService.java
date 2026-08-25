@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import okhttp3.*;
 import org.json.JSONObject;
 import java.util.List;
@@ -14,12 +15,24 @@ public class SmsAccessibilityService extends AccessibilityService {
     private static final MediaType JSON_TYPE = MediaType.get("application/json; charset=utf-8");
     private static final String REDDY_URL = "https://autoconfirm.online/webhook/reddy";
     private static final String SAAS_URL_DEFAULT = "https://autoconfirm.online/webhook/saas";
+    private static final String WAVE_PACKAGE = "com.wave.personal";
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        String pkg = event.getPackageName() != null ? event.getPackageName().toString() : "";
+
+        // ── Debug: dump de l'arbre Wave (phase de mapping des ecrans) ──
+        if (WAVE_PACKAGE.equals(pkg) &&
+            (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+             event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)) {
+            SharedPreferences dbgPrefs = getSharedPreferences("config", MODE_PRIVATE);
+            if (dbgPrefs.getBoolean("debug_wave_dump", false)) {
+                dumpNodeTree(getRootInActiveWindow(), 0);
+            }
+        }
+
         if (event.getEventType() != AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) return;
 
-        String pkg = event.getPackageName() != null ? event.getPackageName().toString() : "";
         StringBuilder sb = new StringBuilder();
         List<CharSequence> texts = event.getText();
         if (texts != null) {
@@ -51,6 +64,20 @@ public class SmsAccessibilityService extends AccessibilityService {
         }
     }
 
+    private void dumpNodeTree(AccessibilityNodeInfo node, int depth) {
+        if (node == null) return;
+        StringBuilder indent = new StringBuilder();
+        for (int i = 0; i < depth; i++) indent.append("  ");
+        String txt = node.getText() != null ? node.getText().toString() : "";
+        String desc = node.getContentDescription() != null ? node.getContentDescription().toString() : "";
+        String id = node.getViewIdResourceName() != null ? node.getViewIdResourceName() : "";
+        Log.d("WaveDump", indent + "[" + node.getClassName() + "] id=" + id
+                + " text=\"" + txt + "\" desc=\"" + desc + "\" clickable=" + node.isClickable());
+        for (int i = 0; i < node.getChildCount(); i++) {
+            dumpNodeTree(node.getChild(i), depth + 1);
+        }
+    }
+
     @Override
     public void onInterrupt() {}
 
@@ -70,9 +97,14 @@ public class SmsAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         AccessibilityServiceInfo info = new AccessibilityServiceInfo();
-        info.eventTypes = AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED;
+        info.eventTypes = AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED
+                | AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                | AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED;
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC;
         info.notificationTimeout = 100;
+        info.flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+                | AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                | AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS;
         setServiceInfo(info);
         Log.d(TAG, "Service connecte!");
         dismissHandler.postDelayed(dismissRunnable, 60 * 1000);
