@@ -237,29 +237,47 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
     }
 
-    private void tapAboveText(AccessibilityNodeInfo root, String text) {
-        // Trouver tous les noeuds avec ce texte et logger leurs positions
-        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
-        Log.d(TAG, "tapAboveText: " + nodes.size() + " noeuds trouves pour: " + text);
-        android.graphics.Rect bestBounds = null;
-        int bestY = Integer.MAX_VALUE;
-        // Prendre le noeud le plus haut sur l ecran (premier dans la grille)
-        for (AccessibilityNodeInfo node : nodes) {
-            android.graphics.Rect bounds = new android.graphics.Rect();
-            node.getBoundsInScreen(bounds);
-            Log.d(TAG, "  noeud: " + bounds + " clickable=" + node.isClickable());
-            if (bounds.top < bestY && bounds.top > 0) {
-                bestY = bounds.top;
-                bestBounds = bounds;
+    private android.graphics.Rect lastTransfertBounds = null;
+    private int stabilityCount = 0;
+
+    private void tapAboveText(final AccessibilityNodeInfo root, final String text) {
+        // Attendre que l ecran soit stable (bounds ne changent plus)
+        new Thread(() -> {
+            android.graphics.Rect prevBounds = null;
+            int stableCount = 0;
+            for (int attempt = 0; attempt < 20; attempt++) {
+                try { Thread.sleep(300); } catch(Exception e) {}
+                AccessibilityNodeInfo r = getRootInActiveWindow();
+                if (r == null) continue;
+                List<AccessibilityNodeInfo> nodes = r.findAccessibilityNodeInfosByText(text);
+                android.graphics.Rect bestBounds = null;
+                int bestY = Integer.MAX_VALUE;
+                for (AccessibilityNodeInfo node : nodes) {
+                    android.graphics.Rect b = new android.graphics.Rect();
+                    node.getBoundsInScreen(b);
+                    if (b.top < bestY && b.top > 100) {
+                        bestY = b.top;
+                        bestBounds = b;
+                    }
+                }
+                if (bestBounds == null) continue;
+                if (prevBounds != null && prevBounds.equals(bestBounds)) {
+                    stableCount++;
+                    if (stableCount >= 2) {
+                        // Ecran stable - on peut cliquer
+                        int x = bestBounds.centerX();
+                        int y = bestBounds.centerY();
+                        Log.d(TAG, "Ecran stable apres " + attempt + " tentatives, tap at " + x + "," + y);
+                        tapAt(x, y);
+                        return;
+                    }
+                } else {
+                    stableCount = 0;
+                }
+                prevBounds = new android.graphics.Rect(bestBounds);
             }
-        }
-        if (bestBounds != null) {
-            int x = bestBounds.centerX();
-            // Tapper au centre du texte (l icone et le texte forment un bloc)
-            int y = bestBounds.centerY();
-            Log.d(TAG, "tapAboveText: tap at " + x + "," + y + " bounds=" + bestBounds);
-            tapAt(x, y);
-        }
+            Log.d(TAG, "Timeout stabilite pour: " + text);
+        }).start();
     }
 
     private void tapAt(int x, int y) {
