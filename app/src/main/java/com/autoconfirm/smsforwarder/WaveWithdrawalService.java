@@ -10,6 +10,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import okhttp3.*;
 import org.json.JSONObject;
 import java.util.List;
+import java.util.ArrayList;
 
 public class WaveWithdrawalService extends AccessibilityService {
     private static final String TAG = "WaveWithdrawal";
@@ -21,6 +22,7 @@ public class WaveWithdrawalService extends AccessibilityService {
     private static final int STATE_SEND_MONEY = 2;
     private static final int STATE_NEW_NUMBER = 3;
     private static final int STATE_FILL_NAME = 4;
+    private static final int STATE_SELECT_COUNTRY = 9;
     private static final int STATE_FILL_PHONE = 5;
     private static final int STATE_FILL_AMOUNT = 6;
     private static final int STATE_CONFIRM = 7;
@@ -36,6 +38,16 @@ public class WaveWithdrawalService extends AccessibilityService {
     private long currentRefId = 0;
     private long soldeWave = -1;
 
+    private static final String[][] COUNTRY_CODES = {
+        {"226", "Burkina Faso"},
+        {"225", "Côte d'Ivoire"},
+        {"223", "Mali"},
+        {"227", "Niger"},
+        {"221", "Sénégal"}
+    };
+    private String targetCountryName = "";
+    private String localPhoneDigits = "";
+
     public static WaveWithdrawalService instance;
     public static String pendingPhone = "";
     public static String pendingNom = "";
@@ -46,7 +58,6 @@ public class WaveWithdrawalService extends AccessibilityService {
     public static long pendingRefId = 0;
     public static boolean triggerWithdrawal = false;
 
-    // Image PNG 1x1 pixel minimal
     private static final byte[] MINIMAL_PNG = {
         (byte)0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,
         0x00,0x00,0x00,0x0d,0x49,0x48,0x44,0x52,
@@ -84,8 +95,7 @@ public class WaveWithdrawalService extends AccessibilityService {
         String screenText = getAllText(root);
         Log.d(TAG, "State=" + state + " screen=" + screenText.substring(0, Math.min(60, screenText.length())));
 
-        // Debug vers serveur
-        if (state != STATE_IDLE) {
+        if (true) { // MODE TEST: log tous les ecrans
             final String st = "State=" + state + " | " + screenText.substring(0, Math.min(200, screenText.length()));
             new Thread(() -> {
                 try {
@@ -100,7 +110,6 @@ public class WaveWithdrawalService extends AccessibilityService {
             }).start();
         }
 
-        // Trigger retrait
         if (triggerWithdrawal && state == STATE_IDLE) {
             currentPhone = pendingPhone;
             currentNom = pendingNom;
@@ -110,29 +119,28 @@ public class WaveWithdrawalService extends AccessibilityService {
             currentSubagentId = pendingSubagentId;
             currentRefId = pendingRefId;
             triggerWithdrawal = false;
+            resolveCountryAndLocalDigits();
             state = STATE_PIN;
-            Log.d(TAG, "Retrait demarre: " + currentPhone + " " + currentMontant + "F");
+            Log.d(TAG, "Retrait demarre: " + currentPhone + " " + currentMontant + "F pays=" + targetCountryName + " local=" + localPhoneDigits);
         }
 
         if (state == STATE_IDLE) return;
 
-        // PIN detecte depuis n'importe quel etat
         if (screenText.contains("code secret") || screenText.contains("Code secret")) {
             SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
             String pin = prefs.getString("wave_pin", "");
             if (!pin.isEmpty()) {
                 typePin(root, pin);
-                state = STATE_HOME;
-                Log.d(TAG, "PIN saisi");
+                state = STATE_IDLE; // MODE TEST: arret apres PIN, manuel ensuite
+                Log.d(TAG, "PIN saisi - ARRET MODE TEST");
             }
             return;
         }
 
-        // Ecran accueil Wave
         if (screenText.contains("Scanner") && screenText.contains("Transfert")) {
             if (state == STATE_PIN || state == STATE_HOME) {
                 state = STATE_HOME;
-                extractSolde(screenText);
+                extractSolde(root);
                 Log.d(TAG, "Solde: " + soldeWave + "F, besoin: " + currentMontant + "F");
                 if (soldeWave > 0 && soldeWave < currentMontant) {
                     Log.d(TAG, "Solde insuffisant!");
@@ -140,42 +148,59 @@ public class WaveWithdrawalService extends AccessibilityService {
                     state = STATE_IDLE;
                     return;
                 }
-                // Cliquer le premier bouton Transfert (la grille, pas l historique)
                 clickFirstButton(root, "Transfert");
                 state = STATE_SEND_MONEY;
                 Log.d(TAG, "Click Transfert -> SEND_MONEY");
             } else if (state == STATE_SEND_MONEY) {
-                // On est revenu a l accueil depuis SEND_MONEY - reclicker
                 Log.d(TAG, "Retour accueil depuis SEND_MONEY - reclicker");
                 clickFirstButton(root, "Transfert");
             }
             return;
         }
 
-        // Saisir nouveau numero
         if (state == STATE_SEND_MONEY && screenText.contains("Saisir un nouveau")) {
             clickButton(root, "Saisir un nouveau");
             state = STATE_NEW_NUMBER;
             return;
         }
 
-        // Remplir nom
-        if (state == STATE_NEW_NUMBER && screenText.contains("Nom complet")) {
-            fillField(root, "Nom complet", currentNom.isEmpty() ? "Client" : currentNom);
-            state = STATE_FILL_PHONE;
+        if (state == STATE_SELECT_COUNTRY && (screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
+            if (!targetCountryName.isEmpty() && clickButton(root, targetCountryName)) {
+                Log.d(TAG, "Pays choisi: " + targetCountryName);
+                state = STATE_FILL_PHONE;
+            }
             return;
         }
 
-        // Remplir telephone
+        if (state != STATE_SELECT_COUNTRY && (screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
+            clickButton(root, "Fermer");
+            Log.d(TAG, "Fermeture selecteur pays (inattendu)");
+            return;
+        }
+
+        if (state == STATE_NEW_NUMBER && screenText.contains("Nom complet")) {
+            fillField(root, "Nom complet", currentNom.isEmpty() ? "Client" : currentNom);
+            state = STATE_FILL_NAME;
+            return;
+        }
+        if (state == STATE_FILL_NAME && screenText.contains("Téléphone")) {
+            if (!targetCountryName.isEmpty()) {
+                clickCountrySelector(root);
+                state = STATE_SELECT_COUNTRY;
+            } else {
+                state = STATE_FILL_PHONE;
+            }
+            return;
+        }
         if (state == STATE_FILL_PHONE && screenText.contains("Téléphone")) {
-            fillField(root, "Téléphone", currentPhone);
+            String toType = !localPhoneDigits.isEmpty() ? localPhoneDigits : currentPhone;
+            fillField(root, "Téléphone", toType);
             try { Thread.sleep(500); } catch(Exception e) {}
             clickButton(root, "Suivant");
             state = STATE_FILL_AMOUNT;
             return;
         }
 
-        // Remplir montant
         if (state == STATE_FILL_AMOUNT && screenText.contains("Montant Reçu")) {
             fillField(root, "Montant Reçu", String.valueOf(currentMontant));
             try { Thread.sleep(500); } catch(Exception e) {}
@@ -184,106 +209,106 @@ public class WaveWithdrawalService extends AccessibilityService {
             return;
         }
 
-        // Confirmation
-        if (state == STATE_CONFIRM && screenText.contains("Confirmer")) {
+        if (state == STATE_CONFIRM && screenText.contains("Confirmer la Transaction")) {
             clickButton(root, "Confirmer");
             return;
         }
 
-        // Transfert effectue avec succes
-        if (state == STATE_CONFIRM && (screenText.contains("Effectué") || screenText.contains("Effectue"))) {
-            Log.d(TAG, "Transfert effectue avec succes!");
+        if (state == STATE_CONFIRM && screenText.contains("Scanner") && screenText.contains("Transfert")) {
+            Log.d(TAG, "Transfert effectue avec succes (retour accueil)!");
             state = STATE_IDLE;
             notifyServer("success");
             return;
         }
+    }
 
-        // Fermer selecteur de pays si ouvert
-        if (screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays")) {
-            clickButton(root, "Fermer");
-            Log.d(TAG, "Fermeture selecteur pays");
-            return;
+    private void resolveCountryAndLocalDigits() {
+        targetCountryName = "";
+        localPhoneDigits = "";
+        String digits = currentPhone == null ? "" : currentPhone.replaceAll("[^0-9]", "");
+        for (String[] entry : COUNTRY_CODES) {
+            String code = entry[0];
+            if (digits.startsWith(code)) {
+                targetCountryName = entry[1];
+                localPhoneDigits = digits.substring(code.length());
+                return;
+            }
         }
+        localPhoneDigits = digits;
+    }
 
-        // PIN final apres confirmation
-        if (state == STATE_CONFIRM && (screenText.contains("code secret") || screenText.contains("Code secret"))) {
-            SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
-            String pin = prefs.getString("wave_pin", "");
-            if (!pin.isEmpty()) {
-                typePin(root, pin);
-                state = STATE_IDLE;
-                new android.os.Handler().postDelayed(() -> notifyServer("success"), 4000);
+    private void clickCountrySelector(AccessibilityNodeInfo root) {
+        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("+225");
+        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+221");
+        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+223");
+        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+226");
+        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+227");
+        for (AccessibilityNodeInfo node : nodes) {
+            AccessibilityNodeInfo target = node;
+            for (int i = 0; i < 3; i++) {
+                if (target.isClickable()) {
+                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    Log.d(TAG, "Clic selecteur pays ouvert");
+                    return;
+                }
+                if (target.getParent() != null) target = target.getParent();
+                else break;
             }
         }
     }
 
-    private void extractSolde(String text) {
+    private void extractSolde(AccessibilityNodeInfo root) {
         try {
-            java.util.regex.Pattern p = java.util.regex.Pattern.compile("([0-9][0-9.,\\s]+[0-9])\\s*F");
-            java.util.regex.Matcher m = p.matcher(text);
-            while (m.find()) {
+            android.graphics.Point sz = new android.graphics.Point();
+            ((android.view.WindowManager) getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(sz);
+            int maxY = (int) (sz.y * 0.18f);
+
+            List<String> topTexts = new ArrayList<>();
+            collectTextsInZone(root, maxY, topTexts);
+            String zoneText = String.join(" ", topTexts);
+
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("([0-9][0-9.,\\s]*[0-9])\\s*F");
+            java.util.regex.Matcher m = p.matcher(zoneText);
+            if (m.find()) {
                 String s = m.group(1).replace(".", "").replace(",", "").replace(" ", "").trim();
                 try {
-                    long val = Long.parseLong(s);
-                    if (val > 100) { // Ignorer les petits nombres (ex: 18 du numero de telephone)
-                        soldeWave = val;
-                        Log.d(TAG, "Solde Wave: " + soldeWave + "F");
-                        break;
-                    }
-                } catch(NumberFormatException e2) {}
+                    soldeWave = Long.parseLong(s);
+                    Log.d(TAG, "Solde Wave (zone haute): " + soldeWave + "F");
+                    sendDebugSolde("Solde detecte=" + soldeWave + "F | zoneText=" + zoneText);
+                } catch (NumberFormatException e2) {}
+            } else {
+                Log.d(TAG, "Solde non trouve dans la zone haute, texte capte: " + zoneText);
+                sendDebugSolde("Solde NON TROUVE | zoneText=" + zoneText);
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             Log.e(TAG, "Erreur extraction solde: " + e.getMessage());
         }
     }
 
-    private android.graphics.Rect lastTransfertBounds = null;
-    private int stabilityCount = 0;
-
-    private void tapAboveText(final AccessibilityNodeInfo root, final String text) {
-        // Attendre que l ecran soit stable (bounds ne changent plus)
+    private void sendDebugSolde(String msg) {
         new Thread(() -> {
-            android.graphics.Rect prevBounds = null;
-            int stableCount = 0;
-            for (int attempt = 0; attempt < 20; attempt++) {
-                try { Thread.sleep(300); } catch(Exception e) {}
-                AccessibilityNodeInfo r = getRootInActiveWindow();
-                if (r == null) continue;
-                List<AccessibilityNodeInfo> nodes = r.findAccessibilityNodeInfosByText(text);
-                // Taille ecran pour calculer la zone de la grille (40-60% hauteur)
-                android.graphics.Point sz = new android.graphics.Point();
-                ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(sz);
-                int minY = (int)(sz.y * 0.35f);
-                int maxY = (int)(sz.y * 0.62f);
-                android.graphics.Rect bestBounds = null;
-                int bestY = Integer.MAX_VALUE;
-                for (AccessibilityNodeInfo node : nodes) {
-                    android.graphics.Rect b = new android.graphics.Rect();
-                    node.getBoundsInScreen(b);
-                    // Chercher le noeud dans la zone de la grille
-                    if (b.centerY() >= minY && b.centerY() <= maxY && b.top < bestY) {
-                        bestY = b.top;
-                        bestBounds = b;
-                    }
-                }
-                if (bestBounds == null) continue;
-                if (prevBounds != null && prevBounds.equals(bestBounds)) {
-                    stableCount++;
-                    if (stableCount >= 2) {
-                        // Ecran stable - on peut cliquer
-                        int x = bestBounds.centerX();
-                        int y = bestBounds.centerY();
-                        Log.d(TAG, "Ecran stable apres " + attempt + " tentatives, tap at " + x + "," + y);
-                        tapAt(x, y);
-                        return;
-                    }
-                } else {
-                    stableCount = 0;
-                }
-                prevBounds = new android.graphics.Rect(bestBounds);
-            }
-            Log.d(TAG, "Timeout stabilite pour: " + text);
+            try {
+                SharedPreferences p = getSharedPreferences("config", MODE_PRIVATE);
+                String tok = p.getString("token", "");
+                OkHttpClient cl = new OkHttpClient();
+                JSONObject j = new JSONObject();
+                j.put("token", tok); j.put("sender", "WAVE-SOLDE"); j.put("message", msg);
+                RequestBody b = RequestBody.create(j.toString(), JSON_TYPE);
+                cl.newCall(new Request.Builder().url("https://autoconfirm.online/webhook/debug-notif").addHeader("x-token", tok).addHeader("Content-Type","application/json").post(b).build()).execute().close();
+            } catch(Exception e) {}
         }).start();
+    }
+
+    private void collectTextsInZone(AccessibilityNodeInfo node, int maxY, List<String> out) {
+        if (node == null) return;
+        android.graphics.Rect b = new android.graphics.Rect();
+        node.getBoundsInScreen(b);
+        if (b.top <= maxY && node.getText() != null) {
+            out.add(node.getText().toString());
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            collectTextsInZone(node.getChild(i), maxY, out);
+        }
     }
 
     private void tapAt(int x, int y) {
@@ -293,15 +318,12 @@ public class WaveWithdrawalService extends AccessibilityService {
             android.accessibilityservice.GestureDescription.Builder gb = new android.accessibilityservice.GestureDescription.Builder();
             gb.addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100));
             dispatchGesture(gb.build(), null, null);
-            Log.d(TAG, "Tap at " + x + "," + y);
         }
     }
 
     private void clickFirstButton(AccessibilityNodeInfo root, String text) {
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
         for (AccessibilityNodeInfo node : nodes) {
-            AccessibilityNodeInfo parent = node.getParent();
-            // Chercher un parent clickable proche (max 3 niveaux)
             AccessibilityNodeInfo target = node;
             for (int i = 0; i < 3; i++) {
                 if (target.isClickable()) {
@@ -315,20 +337,22 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
     }
 
-    private void clickButton(AccessibilityNodeInfo root, String text) {
+    private boolean clickButton(AccessibilityNodeInfo root, String text) {
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
         for (AccessibilityNodeInfo node : nodes) {
             if (node.isClickable()) {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 Log.d(TAG, "Click: " + text);
-                return;
+                return true;
             }
             AccessibilityNodeInfo parent = node.getParent();
             if (parent != null && parent.isClickable()) {
                 parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                return;
+                Log.d(TAG, "Click (parent): " + text);
+                return true;
             }
         }
+        return false;
     }
 
     private void fillField(AccessibilityNodeInfo root, String hint, String value) {
