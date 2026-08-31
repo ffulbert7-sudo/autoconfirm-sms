@@ -37,7 +37,7 @@ public class SmsReceiver extends BroadcastReceiver {
 
             boolean match = sender.contains(sender1) || sender.contains(sender2) || 
                            sender.contains(sender3) || sender.contains("+454") || 
-                           sender.contains("MobileMoney");
+                           sender.contains("MobileMoney") || sender.contains("OMCI");
 
             if (match) {
                 Log.d(TAG, "SMS recu de: " + sender);
