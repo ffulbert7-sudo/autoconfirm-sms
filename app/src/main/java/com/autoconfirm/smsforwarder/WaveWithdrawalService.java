@@ -131,7 +131,7 @@ public class WaveWithdrawalService extends AccessibilityService {
             String pin = prefs.getString("wave_pin", "");
             if (!pin.isEmpty()) {
                 typePin(root, pin);
-                state = STATE_IDLE; // MODE TEST: arret apres PIN, manuel ensuite
+                state = STATE_PIN; // Garder pour detecter accueil apres PIN
                 Log.d(TAG, "PIN saisi - ARRET MODE TEST");
             }
             return;
@@ -148,12 +148,12 @@ public class WaveWithdrawalService extends AccessibilityService {
                     state = STATE_IDLE;
                     return;
                 }
-                clickFirstButton(root, "Transfert");
+                clickTransfert(root);
                 state = STATE_SEND_MONEY;
                 Log.d(TAG, "Click Transfert -> SEND_MONEY");
             } else if (state == STATE_SEND_MONEY) {
                 Log.d(TAG, "Retour accueil depuis SEND_MONEY - reclicker");
-                clickFirstButton(root, "Transfert");
+                clickTransfert(root);
             }
             return;
         }
@@ -164,9 +164,9 @@ public class WaveWithdrawalService extends AccessibilityService {
             return;
         }
 
-        if (state == STATE_SELECT_COUNTRY && (screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
-            if (!targetCountryName.isEmpty() && clickButton(root, targetCountryName)) {
-                Log.d(TAG, "Pays choisi: " + targetCountryName);
+        if ((state == STATE_SELECT_COUNTRY || state == STATE_FILL_PHONE || state == STATE_FILL_NAME) && (screenText.contains("Burkina Faso") || screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
+            String paysT = targetCountryName.isEmpty() ? "Côte d'Ivoire" : targetCountryName; if (clickButton(root, paysT)) {
+                Log.d(TAG, "Pays choisi: " + paysT);
                 state = STATE_FILL_PHONE;
             }
             return;
@@ -321,14 +321,70 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
     }
 
+    private void clickTransfert(AccessibilityNodeInfo root) {
+        android.graphics.Point tsz = new android.graphics.Point();
+        ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(tsz);
+        int tminY = (int)(tsz.y * 0.30f);
+        int tmaxY = (int)(tsz.y * 0.65f);
+        // Chercher noeuds cliquables dans la zone grille
+        java.util.List<AccessibilityNodeInfo> clickables = new java.util.ArrayList<>();
+        collectClickablesZone(root, tminY, tmaxY, clickables);
+        for (AccessibilityNodeInfo cn : clickables) {
+            if (hasChildText(cn, "Transfert")) {
+                android.graphics.Rect cb = new android.graphics.Rect();
+                cn.getBoundsInScreen(cb);
+                Log.d(TAG, "clickTransfert: ACTION_CLICK at " + cb.centerX() + "," + cb.centerY());
+                cn.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                return;
+            }
+        }
+        Log.e(TAG, "clickTransfert: Transfert introuvable dans zone");
+    }
+
+    private void collectClickablesZone(AccessibilityNodeInfo node, int minY, int maxY, java.util.List<AccessibilityNodeInfo> out) {
+        if (node == null) return;
+        android.graphics.Rect b = new android.graphics.Rect();
+        node.getBoundsInScreen(b);
+        if (node.isClickable() && b.centerY() >= minY && b.centerY() <= maxY) out.add(node);
+        for (int i = 0; i < node.getChildCount(); i++) collectClickablesZone(node.getChild(i), minY, maxY, out);
+    }
+
+    private boolean hasChildText(AccessibilityNodeInfo node, String text) {
+        if (node == null) return false;
+        if (node.getText() != null && node.getText().toString().trim().equals(text)) return true;
+        for (int i = 0; i < node.getChildCount(); i++) { if (hasChildText(node.getChild(i), text)) return true; }
+        return false;
+    }
+
     private void clickFirstButton(AccessibilityNodeInfo root, String text) {
+        android.graphics.Point dsz = new android.graphics.Point();
+        ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(dsz);
+        int dminY = (int)(dsz.y * 0.30f);
+        int dmaxY = (int)(dsz.y * 0.65f);
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+        // Essai 1: chercher dans la zone grille (30-65% hauteur)
+        for (AccessibilityNodeInfo node : nodes) {
+            android.graphics.Rect db = new android.graphics.Rect();
+            node.getBoundsInScreen(db);
+            if (db.centerY() < dminY || db.centerY() > dmaxY) continue;
+            AccessibilityNodeInfo target = node;
+            for (int i = 0; i < 5; i++) {
+                if (target.isClickable()) {
+                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    Log.d(TAG, "ClickFirst (zone): " + text + " at " + db.centerX() + "," + db.centerY());
+                    return;
+                }
+                if (target.getParent() != null) target = target.getParent();
+                else break;
+            }
+        }
+        // Essai 2: fallback sans filtre
         for (AccessibilityNodeInfo node : nodes) {
             AccessibilityNodeInfo target = node;
             for (int i = 0; i < 3; i++) {
                 if (target.isClickable()) {
                     target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    Log.d(TAG, "ClickFirst: " + text);
+                    Log.d(TAG, "ClickFirst (fallback): " + text);
                     return;
                 }
                 if (target.getParent() != null) target = target.getParent();
