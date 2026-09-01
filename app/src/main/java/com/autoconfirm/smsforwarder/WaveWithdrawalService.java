@@ -238,24 +238,34 @@ public class WaveWithdrawalService extends AccessibilityService {
     }
 
     private void clickCountrySelector(AccessibilityNodeInfo root) {
-        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("+225");
-        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+221");
-        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+223");
-        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+226");
-        if (nodes.isEmpty()) nodes = root.findAccessibilityNodeInfosByText("+227");
-        for (AccessibilityNodeInfo node : nodes) {
-            AccessibilityNodeInfo target = node;
-            for (int i = 0; i < 3; i++) {
-                if (target.isClickable()) {
-                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    Log.d(TAG, "Clic selecteur pays ouvert");
-                    return;
+        String[] codes = {"+225","+221","+223","+226","+227"};
+        for (String code : codes) {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(code);
+            Log.d(TAG, "clickCountrySelector: " + code + " -> " + nodes.size() + " noeuds");
+            for (AccessibilityNodeInfo node : nodes) {
+                android.graphics.Rect nb = new android.graphics.Rect();
+                node.getBoundsInScreen(nb);
+                AccessibilityNodeInfo target = node;
+                for (int i = 0; i < 8; i++) {
+                    if (target.isClickable()) {
+                        android.graphics.Rect tb = new android.graphics.Rect();
+                        target.getBoundsInScreen(tb);
+                        Log.d(TAG, "clickCountrySelector: click at " + tb.centerX() + "," + tb.centerY());
+                        target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                        return;
+                    }
+                    if (target.getParent() != null) target = target.getParent();
+                    else break;
                 }
-                if (target.getParent() != null) target = target.getParent();
-                else break;
+                // Aucun parent clickable: taper directement sur le noeud
+                Log.d(TAG, "clickCountrySelector: tapAt " + nb.centerX() + "," + nb.centerY());
+                tapAt(nb.centerX(), nb.centerY());
+                return;
             }
         }
+        Log.e(TAG, "clickCountrySelector: introuvable");
     }
+
 
     private void extractSolde(AccessibilityNodeInfo root) {
         try {
@@ -412,16 +422,29 @@ public class WaveWithdrawalService extends AccessibilityService {
     }
 
     private void fillField(AccessibilityNodeInfo root, String hint, String value) {
-        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(hint);
-        for (AccessibilityNodeInfo node : nodes) {
-            if (node.isEditable()) {
-                Bundle args = new Bundle();
-                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value);
-                node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
-                Log.d(TAG, "Fill: " + hint + " = " + value);
-                return;
-            }
+        // Collecte tous les champs editables tries par position Y
+        List<AccessibilityNodeInfo> editables = new java.util.ArrayList<>();
+        collectEditables(root, editables);
+        java.util.Collections.sort(editables, (a, b) -> {
+            android.graphics.Rect ra = new android.graphics.Rect(), rb = new android.graphics.Rect();
+            a.getBoundsInScreen(ra); b.getBoundsInScreen(rb);
+            return Integer.compare(ra.top, rb.top);
+        });
+        int index = hint.contains("Nom") ? 0 : 1;
+        if (editables.size() > index) {
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value);
+            editables.get(index).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            Log.d(TAG, "Fill index " + index + ": " + hint + " = " + value);
+        } else {
+            Log.e(TAG, "Fill ECHEC: " + hint + " (" + editables.size() + " editables)");
         }
+    }
+
+    private void collectEditables(AccessibilityNodeInfo node, List<AccessibilityNodeInfo> out) {
+        if (node == null) return;
+        if (node.isEditable()) out.add(node);
+        for (int i = 0; i < node.getChildCount(); i++) collectEditables(node.getChild(i), out);
     }
 
     private void typePin(AccessibilityNodeInfo root, String pin) {
@@ -494,6 +517,7 @@ public class WaveWithdrawalService extends AccessibilityService {
             }
         }).start();
     }
+
 
     @Override
     public void onInterrupt() { state = STATE_IDLE; }
