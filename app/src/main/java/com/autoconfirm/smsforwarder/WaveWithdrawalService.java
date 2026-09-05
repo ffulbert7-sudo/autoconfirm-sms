@@ -165,16 +165,19 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
 
         if ((state == STATE_SELECT_COUNTRY || state == STATE_FILL_PHONE || state == STATE_FILL_NAME) && (screenText.contains("Burkina Faso") || screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
-            String paysT = targetCountryName.isEmpty() ? "Côte d'Ivoire" : targetCountryName; if (clickButton(root, paysT)) {
-                Log.d(TAG, "Pays choisi: " + paysT);
-                state = STATE_FILL_PHONE;
-            }
-            return;
-        }
-
-        if (state != STATE_SELECT_COUNTRY && (screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
-            clickButton(root, "Fermer");
-            Log.d(TAG, "Fermeture selecteur pays (inattendu)");
+            // Positions fixes par pays (eviter barre navigation)
+            float[] payRatios = {0.76f, 0.83f, 0.89f, 0.94f, 0.95f}; // Burkina CI Mali Niger Senegal
+            int payIdx = 1;
+            if ("Sénégal".equals(targetCountryName)) payIdx = 4;
+            else if ("Mali".equals(targetCountryName)) payIdx = 2;
+            else if ("Burkina Faso".equals(targetCountryName)) payIdx = 0;
+            else if ("Niger".equals(targetCountryName)) payIdx = 3;
+            android.graphics.Point msz = new android.graphics.Point();
+            ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(msz);
+            int itemY = (int)(msz.y * payRatios[payIdx]);
+            Log.d(TAG, "Select pays: " + targetCountryName + " idx=" + payIdx + " tapY=" + itemY + "/" + msz.y);
+            tapAt(msz.x * 2 / 3, itemY);
+            state = STATE_FILL_PHONE;
             return;
         }
 
@@ -184,24 +187,28 @@ public class WaveWithdrawalService extends AccessibilityService {
             return;
         }
         if (state == STATE_FILL_NAME && screenText.contains("Téléphone")) {
-            if (!targetCountryName.isEmpty()) {
-                clickCountrySelector(root);
-                state = STATE_SELECT_COUNTRY;
-            } else {
-                state = STATE_FILL_PHONE;
-            }
+            if (targetCountryName.isEmpty()) targetCountryName = "Côte d'Ivoire";
+            clickCountrySelector(root);
+            state = STATE_SELECT_COUNTRY;
             return;
         }
         if (state == STATE_FILL_PHONE && screenText.contains("Téléphone")) {
             String toType = !localPhoneDigits.isEmpty() ? localPhoneDigits : currentPhone;
             fillField(root, "Téléphone", toType);
             try { Thread.sleep(500); } catch(Exception e) {}
-            clickButton(root, "Suivant");
+            List<AccessibilityNodeInfo> svn = root.findAccessibilityNodeInfosByText("Suivant");
+            boolean svOk = false;
+            for (AccessibilityNodeInfo sv : svn) { AccessibilityNodeInfo st=sv; for(int si=0;si<5;si++){if(st.isClickable()){st.performAction(AccessibilityNodeInfo.ACTION_CLICK);svOk=true;Log.d(TAG,"Suivant OK");break;}if(st.getParent()==null)break;st=st.getParent();}if(svOk)break;}
+            if(!svOk){android.graphics.Point sp=new android.graphics.Point();((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(sp);tapAt(sp.x/2,(int)(sp.y*0.90f));Log.d(TAG,"Suivant tapAt");}
             state = STATE_FILL_AMOUNT;
             return;
         }
 
         if (state == STATE_FILL_AMOUNT && screenText.contains("Montant Reçu")) {
+            // Cliquer sur le champ montant d'abord pour le focus
+            List<AccessibilityNodeInfo> mNodes = root.findAccessibilityNodeInfosByText("Montant Reçu");
+            for (AccessibilityNodeInfo mn : mNodes) { if(mn.isEditable()){mn.performAction(AccessibilityNodeInfo.ACTION_CLICK);break;} }
+            try { Thread.sleep(300); } catch(Exception e) {}
             fillField(root, "Montant Reçu", String.valueOf(currentMontant));
             try { Thread.sleep(500); } catch(Exception e) {}
             clickButton(root, "Envoyer");
@@ -233,6 +240,13 @@ public class WaveWithdrawalService extends AccessibilityService {
                 localPhoneDigits = digits.substring(code.length());
                 return;
             }
+        }
+        // Heuristique Senegal: 9 chiffres commencant par 7
+        if (targetCountryName.isEmpty() && digits.length() == 9 && digits.startsWith("7")) {
+            targetCountryName = "Sénégal";
+            localPhoneDigits = digits;
+            Log.d(TAG, "Heuristique Senegal: " + digits);
+            return;
         }
         localPhoneDigits = digits;
     }
