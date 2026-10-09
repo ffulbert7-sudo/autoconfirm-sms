@@ -37,16 +37,7 @@
             </intent-filter>
         </receiver>
 
-        <service android:name=".SmsAccessibilityService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService"/>
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service"/>
-        </service>
+<!-- SmsAccessibilityService desactive - remplace par SmsNotificationListener -->
 
         <service android:name=".SmsNotificationListener"
             android:label="AutoConfirm Notifications"

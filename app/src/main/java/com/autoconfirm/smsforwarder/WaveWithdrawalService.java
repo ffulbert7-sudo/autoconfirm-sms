@@ -86,6 +86,7 @@ public class WaveWithdrawalService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        try {
         String pkg = event.getPackageName() != null ? event.getPackageName().toString() : "";
         if (!pkg.equals(WAVE_PKG)) return;
 
@@ -159,24 +160,73 @@ public class WaveWithdrawalService extends AccessibilityService {
         }
 
         if (state == STATE_SEND_MONEY && screenText.contains("Saisir un nouveau")) {
-            clickButton(root, "Saisir un nouveau");
-            state = STATE_NEW_NUMBER;
+            // Taper le numero complet avec indicatif dans le champ "A"
+            String fullPhone = "";
+            if (!targetCountryName.isEmpty()) {
+                for (String[] entry : COUNTRY_CODES) {
+                    if (entry[1].equals(targetCountryName)) { fullPhone = "+" + entry[0] + localPhoneDigits; break; }
+                }
+            }
+            if (fullPhone.isEmpty()) fullPhone = "+" + "221" + (localPhoneDigits.isEmpty() ? currentPhone : localPhoneDigits);
+            // Chercher le champ A (premier editable)
+            List<AccessibilityNodeInfo> editables = new java.util.ArrayList<>();
+            collectEditables(root, editables);
+            if (!editables.isEmpty()) {
+                Bundle args = new Bundle();
+                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, fullPhone);
+                editables.get(0).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+                Log.d(TAG, "Champ A rempli: " + fullPhone);
+                // Maintenant cliquer sur Saisir un nouveau numero
+                state = STATE_SEND_MONEY;
+            } else {
+                clickButton(root, "Saisir un nouveau");
+                state = STATE_NEW_NUMBER;
+            }
             return;
         }
 
         if ((state == STATE_SELECT_COUNTRY || state == STATE_FILL_PHONE || state == STATE_FILL_NAME) && (screenText.contains("Burkina Faso") || screenText.contains("Sélectionnez un pays") || screenText.contains("Selectionnez un pays"))) {
-            // Positions fixes par pays (eviter barre navigation)
-            float[] payRatios = {0.76f, 0.83f, 0.89f, 0.94f, 0.95f}; // Burkina CI Mali Niger Senegal
+            // Ordre fixe: Burkina(0) CI(1) Mali(2) Niger(3) Senegal(4)
             int payIdx = 1;
             if ("Sénégal".equals(targetCountryName)) payIdx = 4;
             else if ("Mali".equals(targetCountryName)) payIdx = 2;
             else if ("Burkina Faso".equals(targetCountryName)) payIdx = 0;
             else if ("Niger".equals(targetCountryName)) payIdx = 3;
-            android.graphics.Point msz = new android.graphics.Point();
-            ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(msz);
-            int itemY = (int)(msz.y * payRatios[payIdx]);
-            Log.d(TAG, "Select pays: " + targetCountryName + " idx=" + payIdx + " tapY=" + itemY + "/" + msz.y);
-            tapAt(msz.x * 2 / 3, itemY);
+            // Collecter tous les clickables dans la zone du modal (bas de l'ecran)
+            android.graphics.Point msz2 = new android.graphics.Point();
+            ((android.view.WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getSize(msz2);
+            int modalTop = (int)(msz2.y * 0.45f);
+            int navBar = (int)(msz2.y * 0.92f);
+            List<AccessibilityNodeInfo> modalClickables = new java.util.ArrayList<>();
+            collectClickablesInRange(root, modalTop, navBar, modalClickables);
+            // Trier par Y
+            java.util.Collections.sort(modalClickables, (a, b) -> {
+                android.graphics.Rect ra = new android.graphics.Rect(), rb = new android.graphics.Rect();
+                a.getBoundsInScreen(ra); b.getBoundsInScreen(rb);
+                return Integer.compare(ra.centerY(), rb.centerY());
+            });
+            StringBuilder mblog = new StringBuilder("Modal n=" + modalClickables.size() + " idx=" + payIdx + " pays=" + targetCountryName + " | ");
+            for (int mi = 0; mi < Math.min(modalClickables.size(), 7); mi++) {
+                android.graphics.Rect mr = new android.graphics.Rect();
+                modalClickables.get(mi).getBoundsInScreen(mr);
+                CharSequence mt = modalClickables.get(mi).getText();
+                mblog.append(mi).append(":").append(mt != null ? mt.toString().substring(0, Math.min(8, mt.length())) : "?").append("@").append(mr.centerY()).append(" ");
+            }
+            sendDebugSolde(mblog.toString());
+            Log.d(TAG, "Modal clickables: " + modalClickables.size() + " payIdx=" + payIdx);
+            if (payIdx < modalClickables.size()) {
+                AccessibilityNodeInfo target = modalClickables.get(payIdx);
+                android.graphics.Rect tb = new android.graphics.Rect();
+                target.getBoundsInScreen(tb);
+                Log.d(TAG, "Pays click idx=" + payIdx + " at " + tb.centerX() + "," + tb.centerY());
+                target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            } else if (!modalClickables.isEmpty()) {
+                AccessibilityNodeInfo last = modalClickables.get(modalClickables.size()-1);
+                android.graphics.Rect lb = new android.graphics.Rect();
+                last.getBoundsInScreen(lb);
+                Log.d(TAG, "Pays fallback last at " + lb.centerX() + "," + lb.centerY());
+                last.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            }
             state = STATE_FILL_PHONE;
             return;
         }
@@ -227,8 +277,8 @@ public class WaveWithdrawalService extends AccessibilityService {
             notifyServer("success");
             return;
         }
+        } catch (Exception e) { Log.e("Wave", "ERR: " + e.getMessage()); }
     }
-
     private void resolveCountryAndLocalDigits() {
         targetCountryName = "";
         localPhoneDigits = "";
@@ -453,6 +503,15 @@ public class WaveWithdrawalService extends AccessibilityService {
         } else {
             Log.e(TAG, "Fill ECHEC: " + hint + " (" + editables.size() + " editables)");
         }
+    }
+
+    private void collectClickablesInRange(AccessibilityNodeInfo node, int minY, int maxY, List<AccessibilityNodeInfo> out) {
+        if (node == null) return;
+        android.graphics.Rect b = new android.graphics.Rect();
+        node.getBoundsInScreen(b);
+        // Exclure petits boutons (Fermer X) en imposant largeur > 200px
+        if (node.isClickable() && b.centerY() >= minY && b.centerY() <= maxY && b.width() > 200) out.add(node);
+        for (int i = 0; i < node.getChildCount(); i++) collectClickablesInRange(node.getChild(i), minY, maxY, out);
     }
 
     private void collectEditables(AccessibilityNodeInfo node, List<AccessibilityNodeInfo> out) {
