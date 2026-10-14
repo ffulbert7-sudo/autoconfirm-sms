@@ -39,6 +39,13 @@
 
 <!-- SmsAccessibilityService desactive - remplace par SmsNotificationListener -->
 
+        <service android:name=".WatchdogService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"/>
+
+        <receiver android:name=".WatchdogReceiver"
+            android:exported="false"/>
+
         <service android:name=".SmsNotificationListener"
             android:label="AutoConfirm Notifications"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"

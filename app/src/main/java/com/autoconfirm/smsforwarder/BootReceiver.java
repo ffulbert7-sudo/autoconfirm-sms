@@ -10,6 +10,8 @@ public class BootReceiver extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
             Intent service = new Intent(context, SmsService.class);
             context.startForegroundService(service);
+            Intent watchdog = new Intent(context, WatchdogService.class);
+            context.startForegroundService(watchdog);
         }
     }
 }
