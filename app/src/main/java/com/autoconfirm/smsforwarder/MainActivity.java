@@ -528,6 +528,25 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    private boolean isNotificationListenerEnabled() {
+        String flat = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return flat != null && flat.contains(getPackageName());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!isNotificationListenerEnabled()) {
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("\u26a0\ufe0f Acc\u00e8s notifications requis")
+                .setMessage("AutoConfirm SMS doit \u00eatre activ\u00e9 dans Acc\u00e8s aux notifications pour capturer les paiements Wave et Reddy.")
+                .setPositiveButton("ACTIVER", (d, w) -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)))
+                .setNegativeButton("Plus tard", null)
+                .setCancelable(false)
+                .show();
+        }
+    }
+
     protected void onDestroy() {
         super.onDestroy();
         refreshHandler.removeCallbacks(refreshRunnable);
