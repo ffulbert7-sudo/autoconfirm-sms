@@ -534,6 +534,7 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    @Override
     protected void onResume() {
         super.onResume();
         if (!isNotificationListenerEnabled()) {
