@@ -18,8 +18,11 @@ public class SmsService extends Service {
         createNotificationChannel();
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("AutoConfirm SMS")
-            .setContentText("Service actif - Capture SMS en cours")
+            .setContentText("✅ Service actif - Capture SMS en cours")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build();
         startForeground(1, notification);
         // Demarrer WorkManager watchdog
