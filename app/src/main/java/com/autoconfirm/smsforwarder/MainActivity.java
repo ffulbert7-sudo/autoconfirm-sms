@@ -42,14 +42,34 @@ public class MainActivity extends Activity {
         return flat != null && flat.contains(getPackageName());
     }
 
+    private boolean canScheduleAlarms() {
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
+            return am != null && am.canScheduleExactAlarms();
+        }
+        return true;
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         if (!isNotificationListenerEnabled()) {
             new android.app.AlertDialog.Builder(this)
-                .setTitle("⚠️ Activation requise")
-                .setMessage("AutoConfirm SMS doit être activé dans \'Accès aux notifications\' pour capturer les paiements Wave et Reddy.\n\nCliquez ACTIVER pour continuer.")
+                .setTitle("⚠️ Accès notifications requis")
+                .setMessage("AutoConfirm SMS doit être activé dans \'Accès aux notifications\' pour capturer les paiements Wave et Reddy.")
                 .setPositiveButton("ACTIVER", (d, w) -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)))
+                .setNegativeButton("Plus tard", null)
+                .setCancelable(false)
+                .show();
+        } else if (!canScheduleAlarms()) {
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("⚠️ Alarmes et rappels requis")
+                .setMessage("AutoConfirm SMS a besoin de la permission \'Alarmes et rappels\' pour se redémarrer automatiquement.")
+                .setPositiveButton("ACTIVER", (d, w) -> {
+                    if (android.os.Build.VERSION.SDK_INT >= 31) {
+                        startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM));
+                    }
+                })
                 .setNegativeButton("Plus tard", null)
                 .setCancelable(false)
                 .show();
