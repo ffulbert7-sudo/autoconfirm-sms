@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
                 .setNegativeButton("Plus tard", null)
                 .setCancelable(false)
                 .show();
+        }
     }
 
     @Override
