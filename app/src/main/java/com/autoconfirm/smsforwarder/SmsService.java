@@ -22,6 +22,8 @@ public class SmsService extends Service {
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .build();
         startForeground(1, notification);
+        // Demarrer WorkManager watchdog
+        WatchdogWorker.schedule(this);
     }
 
     @Override
