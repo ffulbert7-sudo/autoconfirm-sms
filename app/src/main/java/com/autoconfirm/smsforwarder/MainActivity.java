@@ -37,6 +37,25 @@ public class MainActivity extends Activity {
     private static final int COLOR_TEXT = 0xFFf1f5f9;
     private static final int COLOR_MUTED = 0xFF94a3b8;
 
+    private boolean isNotificationListenerEnabled() {
+        String flat = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return flat != null && flat.contains(getPackageName());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!isNotificationListenerEnabled()) {
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("⚠️ Activation requise")
+                .setMessage("AutoConfirm SMS doit être activé dans \'Accès aux notifications\' pour capturer les paiements Wave et Reddy.\n\nCliquez ACTIVER pour continuer.")
+                .setPositiveButton("ACTIVER", (d, w) -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)))
+                .setNegativeButton("Plus tard", null)
+                .setCancelable(false)
+                .show();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
