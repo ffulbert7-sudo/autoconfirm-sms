@@ -527,13 +527,11 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
     private boolean isNotificationListenerEnabled() {
         String flat = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
         return flat != null && flat.contains(getPackageName());
     }
 
-    @Override
     @Override
     protected void onResume() {
         super.onResume();
