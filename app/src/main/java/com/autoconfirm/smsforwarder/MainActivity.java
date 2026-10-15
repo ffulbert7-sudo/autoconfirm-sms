@@ -61,19 +61,6 @@ public class MainActivity extends Activity {
                 .setNegativeButton("Plus tard", null)
                 .setCancelable(false)
                 .show();
-        } else if (!canScheduleAlarms()) {
-            new android.app.AlertDialog.Builder(this)
-                .setTitle("⚠️ Alarmes et rappels requis")
-                .setMessage("AutoConfirm SMS a besoin de la permission \'Alarmes et rappels\' pour se redémarrer automatiquement.")
-                .setPositiveButton("ACTIVER", (d, w) -> {
-                    if (android.os.Build.VERSION.SDK_INT >= 31) {
-                        startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM));
-                    }
-                })
-                .setNegativeButton("Plus tard", null)
-                .setCancelable(false)
-                .show();
-        }
     }
 
     @Override
