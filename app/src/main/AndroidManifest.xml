@@ -39,6 +39,9 @@
 
 <!-- SmsAccessibilityService desactive - remplace par SmsNotificationListener -->
 
+        <service android:name=".AlertService"
+            android:exported="false"/>
+
         <service android:name=".WatchdogService"
             android:exported="false"
             android:foregroundServiceType="dataSync"/>

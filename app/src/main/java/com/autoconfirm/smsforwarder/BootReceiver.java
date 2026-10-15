@@ -12,6 +12,8 @@ public class BootReceiver extends BroadcastReceiver {
             context.startForegroundService(service);
             Intent watchdog = new Intent(context, WatchdogService.class);
             context.startForegroundService(watchdog);
+            Intent alert = new Intent(context, AlertService.class);
+            context.startService(alert);
         }
     }
 }
