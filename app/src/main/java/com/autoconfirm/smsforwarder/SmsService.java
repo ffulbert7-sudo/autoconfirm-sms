@@ -44,6 +44,36 @@ public class SmsService extends Service {
     @Override
     public IBinder onBind(Intent intent) { return null; }
 
+    private void startHeartbeat() {
+        new Thread(() -> {
+            while (true) {
+                try {
+                    android.content.SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
+                    String serverUrl = prefs.getString("url", "https://autoconfirm.online");
+                    String token = prefs.getString("token", "");
+                    if (!token.isEmpty()) {
+                        String flat = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+                        String notif = (flat != null && flat.contains(getPackageName())) ? "1" : "0";
+                        java.net.URL u = new java.net.URL(serverUrl + "/api/heartbeat");
+                        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) u.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setDoOutput(true);
+                        conn.setConnectTimeout(10000);
+                        conn.setReadTimeout(10000);
+                        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                        String body = "token=" + token + "&notif=" + notif + "&version=38";
+                        conn.getOutputStream().write(body.getBytes());
+                        conn.getResponseCode();
+                        conn.disconnect();
+                    }
+                    Thread.sleep(5 * 60 * 1000);
+                } catch (Exception e) {
+                    try { Thread.sleep(60 * 1000); } catch (Exception ex) {}
+                }
+            }
+        }).start();
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
