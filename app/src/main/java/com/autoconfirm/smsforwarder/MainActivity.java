@@ -105,28 +105,7 @@ public class MainActivity extends Activity {
         root.addView(spacer(16));
 
         btnWithdraw.setOnClickListener(v -> {
-            if (!prefs.getBoolean("wave_withdrawal_enabled", false)) {
-                return;
-            }
-            new Thread(() -> {
-                try {
-                    String url = prefs.getString("url","https://autoconfirm.online/webhook/saas")
-                        .replace("/webhook/saas","/api/withdrawals/pending");
-                    String token = prefs.getString("token","");
-                    okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
-                    okhttp3.Request req = new okhttp3.Request.Builder()
-                        .url(url).addHeader("x-token", token).get().build();
-                    okhttp3.Response resp = client.newCall(req).execute();
-                    String body = resp.body().string();
-                    resp.close();
-                    org.json.JSONObject json = new org.json.JSONObject(body);
-                    }
-                } catch(Exception e) {
-                    runOnUiThread(() -> tvStatus.setText("Erreur: " + e.getMessage()));
-                }
-            }).start();
-        });
-        root.addView(btnWithdraw);
+            
 
         scroll.addView(root);
         setContentView(scroll);
