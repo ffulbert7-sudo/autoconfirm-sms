@@ -107,6 +107,7 @@ public class MainActivity extends Activity {
                 startForegroundService(svc);
             else startService(svc);
             updateStatus();
+            android.widget.Toast.makeText(this, "✅ Service démarré ! Capture SMS active.", android.widget.Toast.LENGTH_LONG).show();
         });
         root.addView(btnStart);
         root.addView(spacer(16));
