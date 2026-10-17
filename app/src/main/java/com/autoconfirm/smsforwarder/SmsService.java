@@ -27,6 +27,7 @@ public class SmsService extends Service {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build();
         startForeground(1, notification);
+        startHeartbeat();
         // WakeLock pour rester actif écran éteint
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AutoConfirm::SmsWakeLock");
