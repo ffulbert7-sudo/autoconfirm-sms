@@ -221,14 +221,7 @@ public class MainActivity extends Activity {
         tvStatus.setTextColor(ok ? 0xFF166534 : 0xFF92400e);
     }
 
-    private boolean isAccessibilityEnabled() {
-        AccessibilityManager am = (AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
-        List<AccessibilityServiceInfo> services = am.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
-        for (AccessibilityServiceInfo s : services)
-            if (s.getId().contains(getPackageName())) return true;
-        return false;
-    }
+
 
     private void requestAllPermissions() {
         if (Build.VERSION.SDK_INT >= 33) {
