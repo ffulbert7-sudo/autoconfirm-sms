@@ -213,7 +213,7 @@ public class MainActivity extends Activity {
     }
 
     private void updateStatus() {
-        boolean ok = isAccessibilityEnabled();
+        boolean ok = isNotificationListenerEnabled();
         tvStatus.setText(ok ?
             "Service actif - SMS captures en arriere-plan" :
             "ATTENTION: Accessibilite non activee - Clique sur le bouton orange");
