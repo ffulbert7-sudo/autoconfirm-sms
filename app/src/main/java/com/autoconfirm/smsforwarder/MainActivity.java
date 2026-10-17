@@ -212,6 +212,11 @@ public class MainActivity extends Activity {
         setContentView(scroll);
     }
 
+    private boolean isNotificationListenerEnabled() {
+        String flat = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return flat != null && flat.contains(getPackageName());
+    }
+
     private void updateStatus() {
         boolean ok = isNotificationListenerEnabled();
         tvStatus.setText(ok ?
