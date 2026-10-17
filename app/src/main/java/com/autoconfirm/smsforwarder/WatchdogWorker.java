@@ -19,12 +19,21 @@ public class WatchdogWorker extends Worker {
     @Override
     public Result doWork() {
         Context ctx = getApplicationContext();
+        // Redemarrer SmsService
         Intent intent = new Intent(ctx, SmsService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ctx.startForegroundService(intent);
         } else {
             ctx.startService(intent);
         }
+        // Redemarrer AlertService
+        Intent alertIntent = new Intent(ctx, AlertService.class);
+        ctx.startService(alertIntent);
+        // Redemarrer WatchdogService si existant
+        try {
+            Intent watchdogIntent = new Intent(ctx, WatchdogService.class);
+            ctx.startForegroundService(watchdogIntent);
+        } catch (Exception e) {}
         return Result.success();
     }
 
