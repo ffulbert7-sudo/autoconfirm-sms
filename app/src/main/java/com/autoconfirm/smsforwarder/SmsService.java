@@ -4,12 +4,14 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.os.PowerManager;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
 
 public class SmsService extends Service {
+    private PowerManager.WakeLock wakeLock;
     public static final String CHANNEL_ID = "SmsForwarderChannel";
 
     @Override
@@ -25,6 +27,10 @@ public class SmsService extends Service {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build();
         startForeground(1, notification);
+        // WakeLock pour rester actif écran éteint
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AutoConfirm::SmsWakeLock");
+        wakeLock.acquire();
         // Demarrer WorkManager watchdog
         WatchdogWorker.schedule(this);
     }
