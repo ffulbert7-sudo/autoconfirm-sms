@@ -86,6 +86,12 @@ public class MainActivity extends Activity {
         root.addView(btnSave);
         root.addView(spacer(10));
 
+        Button btnAccess = btn("1. Autoriser Accessibilite", 0xFFf59e0b);
+        btnAccess.setOnClickListener(v ->
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        root.addView(btnAccess);
+        root.addView(spacer(10));
+
         Button btnNotif = btn("2. Autoriser Acces Notifications", 0xFF8b5cf6);
         btnNotif.setOnClickListener(v ->
             startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")));
