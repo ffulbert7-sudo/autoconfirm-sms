@@ -104,8 +104,6 @@ public class MainActivity extends Activity {
         root.addView(btnStart);
         root.addView(spacer(16));
 
-        btnWithdraw.setOnClickListener(v -> {
-            
 
         scroll.addView(root);
         setContentView(scroll);
