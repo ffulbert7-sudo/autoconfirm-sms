@@ -210,6 +210,8 @@ public class MainActivity extends Activity {
 
         scroll.addView(root);
         setContentView(scroll);
+        // Verifier mise a jour
+        UpdateChecker.check(this);
     }
 
     private boolean isNotificationListenerEnabled() {
