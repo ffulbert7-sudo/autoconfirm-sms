@@ -85,7 +85,6 @@ public class SmsNotificationListener extends NotificationListenerService {
         }
 
         // Code 2FA authenticationBot
-        }
 
         if (isInsystem && isApproved && isWebMgmtBot && isDepositRequest && !isWithdrawal && !isRejected) {
             String reddyUrl = "https://autoconfirm.online/webhook/reddy";
