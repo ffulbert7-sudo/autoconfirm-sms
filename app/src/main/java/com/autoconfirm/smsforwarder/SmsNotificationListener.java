@@ -20,8 +20,18 @@ public class SmsNotificationListener extends NotificationListenerService {
             try {
                 SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
                 if (prefs.getBoolean("auto_dismiss_notif", false)) {
-                    cancelAllNotifications();
-                    Log.d(TAG, "Notifications balayees");
+                    // Ne pas balayer les notifications authenticationBot (code 2FA Reddy)
+                    android.service.notification.StatusBarNotification[] notifs = getActiveNotifications();
+                    for (android.service.notification.StatusBarNotification sbn : notifs) {
+                        android.os.Bundle extras = sbn.getNotification().extras;
+                        String title = extras != null && extras.getCharSequence("android.title") != null ? extras.getCharSequence("android.title").toString() : "";
+                        String text = extras != null && extras.getCharSequence("android.text") != null ? extras.getCharSequence("android.text").toString() : "";
+                        if (title.contains("authenticationBot") || text.contains("authenticationBot") || title.contains("Reddy")) {
+                            continue;
+                        }
+                        cancelNotification(sbn.getKey());
+                    }
+                    Log.d(TAG, "Notifications balayees sauf Reddy");
                 }
             } catch(Exception e) {}
             dismissHandler.postDelayed(this, 60 * 1000);
