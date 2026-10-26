@@ -8,8 +8,8 @@ android {
         applicationId "com.autoconfirm.smsforwarder"
         minSdk 26
         targetSdk 33
-        versionCode 27
-        versionName "1.0"
+        versionCode 28
+        versionName "1.47"
     }
     buildTypes {
         release { minifyEnabled false }

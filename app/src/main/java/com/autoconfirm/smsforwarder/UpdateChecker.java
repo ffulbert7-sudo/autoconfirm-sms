@@ -18,7 +18,7 @@ import java.net.URL;
 import org.json.JSONObject;
 
 public class UpdateChecker {
-    private static final int CURRENT_VERSION = 44;
+    private static final int CURRENT_VERSION = 47;
 
     public static void check(Activity activity) {
         new Thread(() -> {

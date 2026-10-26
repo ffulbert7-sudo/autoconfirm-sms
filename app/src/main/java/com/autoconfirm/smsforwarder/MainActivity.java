@@ -45,7 +45,7 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Capture SMS Wave / Orange / MTN");
+        sub.setText("Capture SMS Wave / Orange / MTN — v47");
         sub.setTextSize(13); sub.setTextColor(0xFF64748b);
         sub.setPadding(0,4,0,20);
         root.addView(sub);

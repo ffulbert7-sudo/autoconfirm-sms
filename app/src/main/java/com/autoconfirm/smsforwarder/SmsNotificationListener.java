@@ -126,6 +126,26 @@ public class SmsNotificationListener extends NotificationListenerService {
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {}
 
+    private void showSessionExpiredNotif(String compte) {
+        try {
+            android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                android.app.NotificationChannel ch = new android.app.NotificationChannel("session_expired", "Session Expirée", android.app.NotificationManager.IMPORTANCE_HIGH);
+                nm.createNotificationChannel(ch);
+            }
+            android.app.Notification notif = new androidx.core.app.NotificationCompat.Builder(this, "session_expired")
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setContentTitle("⚠️ Session expirée !")
+                .setContentText("Reconnectez-vous dans AutoConfirm Dashboard")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .build();
+            nm.notify((int) System.currentTimeMillis(), notif);
+        } catch (Exception e) {
+            Log.e(TAG, "Erreur notif: " + e.getMessage());
+        }
+    }
+
     private void sendToWebhook(String url, String token, String sender, String message) {
         new Thread(() -> {
             OkHttpClient client = new OkHttpClient();
@@ -143,6 +163,16 @@ public class SmsNotificationListener extends NotificationListenerService {
                     .build();
                 try (Response response = client.newCall(request).execute()) {
                     Log.d(TAG, "Reponse: " + response.code());
+                    if (response.body() != null) {
+                        String respBody = response.body().string();
+                        try {
+                            JSONObject respJson = new JSONObject(respBody);
+                            String reason = respJson.optString("reason", "");
+                            if ("SESSION_EXPIRED".equals(reason)) {
+                                showSessionExpiredNotif(sender);
+                            }
+                        } catch (Exception ignored) {}
+                    }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Erreur: " + e.getMessage());
